@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>تقييم التدريب العملي - تمريض</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://arbgzaiipplvqynpqmch.supabase.co">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#10343f;--teal:#0e7c86;--teal2:#e3f2f3;--gold:#c8962b;--bg:#f3f6f7;--line:#d6e0e3;--red:#b3362f;--green:#1f7a4d;--r:10px}
@@ -30,12 +31,12 @@ h2{margin:.2em 0 .8em;font-size:1.3em}
 .bar i{display:block;height:100%;background:var(--teal)}
 .row{display:flex;align-items:center;gap:.7em;padding:.7em 1em;border-bottom:1px solid var(--line);cursor:pointer;background:#fff;width:100%;text-align:start;border-radius:0;min-height:56px}
 .list{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:.8em}
-.row .n{width:2.2em;color:#5d7780}.row .nm{flex:1;font-weight:600}
+.row .n{width:2.2em;color:#5d7780}.row .nm{flex:1;min-width:0;font-weight:600;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.5}
 .chip{padding:.15em .7em;border-radius:20px;font-size:.85em;background:var(--teal2);white-space:nowrap}
 .chip.a{background:#f8e0de;color:var(--red)}.chip.c{background:#dcf1e6;color:var(--green)}
 .bar2{display:flex;gap:.7em;flex-wrap:wrap}.bar2>*{flex:1;min-width:130px}
 .seg{display:flex;gap:.5em;margin:.6em 0}.seg>button{flex:1}
-.modal{position:fixed;inset:0;background:#10343f99;display:flex;align-items:flex-end;justify-content:center;z-index:5}
+.modal{position:fixed;inset:0;background:#10343f99;display:flex;align-items:flex-end;justify-content:center;z-index:50}
 .sheet{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:1.2em}
 @media(min-width:640px){.modal{align-items:center}.sheet{border-radius:18px}}
 .st{min-height:1.6em;font-weight:600;margin:.4em 0}.st.bad{color:var(--red)}.st.good{color:var(--green)}
@@ -71,10 +72,10 @@ button.on{background:linear-gradient(135deg,#0b2c4a,#0f5c78)}
 .big{background:linear-gradient(90deg,#0b2c4a,#12a5b5);-webkit-background-clip:text;background-clip:text;color:transparent}
 h2{position:relative;padding-inline-start:.7em}h2::before{content:"";position:absolute;inset-inline-start:0;top:.15em;bottom:.15em;width:5px;border-radius:4px;background:linear-gradient(var(--gold),var(--teal))}
 .bar{background:#dcecf0}.bar i{background:linear-gradient(90deg,var(--teal),var(--gold));animation:fill 1s ease-out both}
-.row{animation:rise .35s both;transition:background .15s,padding .15s}.row:hover{background:var(--teal2);padding-inline-start:1.3em}
+.row{transition:background .15s,padding .15s}.row:hover{background:var(--teal2);padding-inline-start:1.3em}
 .list{box-shadow:0 2px 10px #0b2c4a0f}
 .chip{font-weight:600}.sum{background:linear-gradient(135deg,#e2f5f7,#fff7dc);border:1px solid #f1e2a8}
-.modal{animation:fade .2s both;backdrop-filter:blur(3px)}.sheet{animation:up .3s cubic-bezier(.2,.9,.3,1) both;border-top:4px solid var(--gold)}
+.modal{animation:fade .2s both}.sheet{animation:up .3s cubic-bezier(.2,.9,.3,1) both;border-top:4px solid var(--gold)}
 .sheet::before{content:"";display:block;width:100%;height:0}
 table th{background:linear-gradient(135deg,#0b2c4a,#0f5c78)!important;color:#fff;border-color:#0b2c4a!important}
 table tr:nth-child(even) td{background:#f3f9fb}table tr:hover td{background:#fff6d6}
@@ -82,9 +83,9 @@ table tr:nth-child(even) td{background:#f3f9fb}table tr:hover td{background:#fff
 .phd{display:none}
 /* login */
 .stage{position:fixed;inset:0;z-index:0;overflow:hidden;background:linear-gradient(135deg,#0b2c4a,#0f5c78 55%,#12a5b5);display:grid;place-items:center;padding:1em}
-.blob{position:absolute;border-radius:50%;filter:blur(40px);opacity:.55;animation:drift 14s ease-in-out infinite}
+.blob{position:absolute;border-radius:50%;filter:blur(30px);will-change:transform;opacity:.55;animation:drift 14s ease-in-out infinite}
 .b1{width:340px;height:340px;background:#e8a900;top:-80px;right:-60px}.b2{width:300px;height:300px;background:#e2231a;bottom:-90px;left:-70px;opacity:.35;animation-delay:-5s}.b3{width:260px;height:260px;background:#8dc63f;top:40%;left:55%;opacity:.3;animation-delay:-9s}
-.stage .login{position:relative;z-index:1;margin:0;width:100%;max-width:400px;padding:1.6em 1.5em;background:#ffffffeb;backdrop-filter:blur(10px);border:0;border-top:4px solid var(--gold);border-radius:20px;box-shadow:0 24px 60px #00000055;text-align:center;animation:rise .7s both}
+.stage .login{position:relative;z-index:1;margin:0;width:100%;max-width:400px;padding:1.6em 1.5em;background:#ffffffeb;border:0;border-top:4px solid var(--gold);border-radius:20px;box-shadow:0 24px 60px #00000055;text-align:center;animation:rise .7s both}
 .stage .login label{text-align:start}
 .ring{width:128px;height:128px;margin:-70px auto .6em;border-radius:50%;padding:5px;background:conic-gradient(var(--gold),var(--teal),var(--red),var(--gold));animation:spin 8s linear infinite;box-shadow:0 8px 24px #0b2c4a55}
 .ring img{width:100%;height:100%;border-radius:50%;background:#fff;display:block;animation:spin 8s linear infinite reverse}
@@ -104,7 +105,7 @@ table tr:nth-child(even) td{background:#f3f9fb}table tr:hover td{background:#fff
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 <style>.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.9em}th,td{border:1px solid #ccd;padding:.4em .6em;text-align:right;white-space:nowrap}th{background:#e8f0f2;position:sticky;top:0}
-@media print{.top,.seg,.bar2,#fq,button,.muted{display:none!important}body{background:#fff}table{font-size:10px}thead{display:table-header-group}tr{page-break-inside:avoid}@page{size:landscape;margin:10mm}}.gp{display:flex;flex-wrap:wrap;gap:.4em;max-height:220px;overflow:auto;border:1px solid #ccd;padding:.5em;border-radius:6px}.gc{display:flex;align-items:center;gap:.3em;margin:0;padding:.2em .5em;border:1px solid #dde;border-radius:6px;cursor:pointer}.gc input{width:auto;min-height:auto}</style>
+@media print{.top,.seg,.bar2,#fq,button,.muted{display:none!important}body{background:#fff}table{font-size:10px}thead{display:table-header-group}tr{page-break-inside:avoid}@page{size:landscape;margin:10mm}}.gp{display:flex;flex-wrap:wrap;gap:.4em;max-height:220px;overflow:auto;border:1px solid #ccd;padding:.5em;border-radius:6px}.gc{display:flex;align-items:center;gap:.3em;margin:0;padding:.2em .5em;border:1px solid #dde;border-radius:6px;cursor:pointer}.gc input{width:auto;min-height:auto}.sheet h2{white-space:normal;overflow:visible;text-overflow:clip}.row{height:auto}.sheet{max-height:calc(100vh - 16px)}.modal{padding:8px}</style>
 </head>
 <body>
 <div id="app"></div>
@@ -144,7 +145,7 @@ function goHome(){ $('#md')?.remove(); S.me.role==='doctor'?home():staffView(S.t
 async function logout(){ await SB.auth.signOut(); S.me=null; loginView(); }
 
 async function boot(){
-  const {data:{user}} = await SB.auth.getUser();
+  const {data:{session:ss0}} = await SB.auth.getSession(); const user=ss0.user;
   const [d,a,st,p] = await Promise.all([
     SB.from('doctors').select('*').eq('user_id',user.id).maybeSingle(),
     SB.from('doctor_group_assignments').select('group_code,training_type_code'),
@@ -187,24 +188,23 @@ async function groupsView(t){
 async function groupView(g){ S.g={gc:g}; S.sn=1; S.showAll=false; await loadGroup(); drawGroup(); openFirst(); }
 async function loadGroup(){
   const {gc}=S.g, t=S.t, lab=t==='lab', p=S.period.id;
-  const st=await SB.from('students').select('student_code,serial_no,full_name,display_name').eq('group_code',gc).order('serial_no');
-  let q=SB.from(lab?'lab_sessions':'clinical_sessions').select('*').eq('group_code',gc).eq('period_id',p).order('session_no');
-  if(!lab) q=q.eq('training_type_code',t);
-  const ss=await q; S.g.stu=st.data||[]; S.g.sessions=ss.data||[]; S.g.all={};
-  S.g.sess=S.g.sessions.find(x=>x.session_no===S.sn)||null; S.g.ass={};
-  if(S.g.sess){const r=await SB.from(lab?'lab_assessments':'clinical_assessments').select('*').eq('session_id',S.g.sess.id); (r.data||[]).forEach(a=>S.g.ass[a.student_code]=a);}
-  if(!lab&&S.g.sessions.length){const r=await SB.from('clinical_assessments').select('*').in('session_id',S.g.sessions.map(x=>x.id));
-    (r.data||[]).forEach(a=>{const o=S.g.sessions.find(x=>x.id===a.session_id); if(o) S.g.all[a.student_code+'|'+o.session_no]=a;});}
-  await loadSummary();
+  let q=SB.from(lab?'lab_sessions':'clinical_sessions').select('*').eq('group_code',gc).eq('period_id',p).order('session_no'); if(!lab) q=q.eq('training_type_code',t);
+  const [st,ss]=await Promise.all([SB.from('students').select('student_code,serial_no,full_name,display_name').eq('group_code',gc).order('serial_no'),q]);
+  S.g.stu=st.data||[]; S.g.sessions=ss.data||[]; S.g.all={}; S.g.ass={};
+  S.g.sess=S.g.sessions.find(x=>x.session_no===S.sn)||null;
+  const want=lab?(S.g.sess?[S.g.sess.id]:[]):S.g.sessions.map(x=>x.id);
+  const [r]=await Promise.all([want.length?SB.from(lab?'lab_assessments':'clinical_assessments').select('*').in('session_id',want):{data:[]}, loadSummary()]);
+  (r.data||[]).forEach(a=>{const o=S.g.sessions.find(x=>x.id===a.session_id); if(!o) return; if(!lab) S.g.all[a.student_code+'|'+o.session_no]=a; if(S.g.sess&&a.session_id===S.g.sess.id) S.g.ass[a.student_code]=a;});
 }
-async function loadSummary(){
-  const {gc}=S.g, t=S.t, lab=t==='lab', p=S.period.id, like=gc+'-%';
-  const sm=lab?await SB.from('v_lab_summary').select('*').eq('group_code',gc).eq('period_id',p)
-              :await SB.from('v_clinical_summary').select('*').eq('group_code',gc).eq('training_type_code',t).eq('period_id',p);
-  S.g.sum=Object.fromEntries((sm.data||[]).map(x=>[x.student_code,x]));
-  S.g.sheet={}; S.g.quiz={};
-  if(!lab){const r=await SB.from('clinical_sheet_scores').select('id,student_code,score,version').eq('training_type_code',t).eq('period_id',p).like('student_code',like); (r.data||[]).forEach(x=>S.g.sheet[x.student_code]=x);}
-  else{const r=await SB.from('lab_quizzes').select('*').eq('period_id',p).like('student_code',like); (r.data||[]).forEach(x=>S.g.quiz[x.student_code+'|'+x.quiz_no]=x);}
+async function loadSummary(only){
+  const {gc}=S.g, t=S.t, lab=t==='lab', p=S.period.id;
+  let a=lab?SB.from('v_lab_summary').select('*').eq('group_code',gc).eq('period_id',p):SB.from('v_clinical_summary').select('*').eq('group_code',gc).eq('training_type_code',t).eq('period_id',p);
+  let b=lab?SB.from('lab_quizzes').select('*').eq('period_id',p):SB.from('clinical_sheet_scores').select('id,student_code,score,version').eq('training_type_code',t).eq('period_id',p);
+  if(only){a=a.eq('student_code',only);b=b.eq('student_code',only);} else b=b.like('student_code',gc+'-%');
+  const [sm,r]=await Promise.all([a,b]);
+  if(!only){S.g.sum={};S.g.sheet={};S.g.quiz={};}
+  (sm.data||[]).forEach(x=>S.g.sum[x.student_code]=x);
+  (r.data||[]).forEach(x=>{ if(lab) S.g.quiz[x.student_code+'|'+x.quiz_no]=x; else S.g.sheet[x.student_code]=x; });
 }
 function drawGroup(){
   const lab=S.t==='lab', {gc,sess,sessions}=S.g;
@@ -225,7 +225,9 @@ function drawGroup(){
 }
 function drawList(){
   const q=($('#q')?.value||'').trim(), lab=S.t==='lab';
-  if(!q&&!S.showAll){ $('#ls').innerHTML='<div class="row" style="justify-content:center"><span class="muted">للرجوع لطالب معيّن اكتب اسمه في البحث</span></div><button class="row" onclick="openFirst()" style="justify-content:center">البدء من أول طالب</button><button class="row" onclick="S.showAll=true;drawList()" style="justify-content:center">عرض كل الطلاب</button>'; return; }
+  if(!q&&!S.showAll){
+    const left=S.g.stu.filter(x=>!S.g.ass[x.student_code]).length;
+    $('#ls').innerHTML=`<div class="row" style="justify-content:center"><b>${left?`المتبقي ${left} طالب لم يُسجَّل في هذه الجلسة`:'تم تسجيل جميع الطلاب في هذه الجلسة ✓'}</b></div><div class="row" style="justify-content:center"><span class="muted">للرجوع إلى طالب سبق تسجيله أو متأخر اكتب اسمه في البحث</span></div>${left?'<button class="row" onclick="openFirst()" style="justify-content:center">البدء من أول طالب لم يُسجَّل</button>':''}<button class="row" onclick="S.showAll=true;drawList()" style="justify-content:center">عرض كل الطلاب</button>`; return; }
   const rows=S.g.stu.filter(s=>!q||s.full_name.includes(q)).map(s=>{
     const a=S.g.ass[s.student_code], m=S.g.sum[s.student_code]||{};
     const c=!a?'<span class="chip">لم يُسجَّل</span>':a.status==='present'?'<span class="chip c">حاضر</span>':`<span class="chip a">غـ${a.makeup_done?' (عوّض)':''}</span>`;
@@ -240,8 +242,9 @@ function openStu(code){
   M={code, st:a?a.status:null, bg:a?a.behavior_good:null, mk:!!a?.makeup_done,
      att:a?.attendance_score??'', part:a?.participation_score??'', sheet:sh?sh.score:'',
      q1:S.g.quiz[code+'|1']?.score??'', q2:S.g.quiz[code+'|2']?.score??''};
-  drawStu();
+  drawStu(); const sh0=document.querySelector('.sheet'); if(sh0) sh0.scrollTop=0;
 }
+function pendMk(){const n=num('clinical.sessions_per_type'),o=[];for(let i=1;i<=n;i++){const a=S.g.all[M.code+'|'+i];if(a&&a.status==='absent'&&!a.makeup_done)o.push(i);}return o;}
 function mkBlock(){
   const n=num('clinical.sessions_per_type'), today=new Date().toLocaleDateString('en-CA'); let h='<hr><div class="muted">تعويض الغياب (اكتب تاريخ التعويض)</div>';
   for(let i=1;i<=n;i++){const a=S.g.all[M.code+'|'+i];
@@ -269,8 +272,8 @@ function drawStu(){
     body=seg+(M.st==='present'?`<div class="muted">السلوك</div><div class="seg"><button class="${M.bg===true?'on':''}" onclick="setM('bg',true)">سلوك جيد (${num('clinical.behavior_max')})</button><button class="${M.bg===false?'on':''}" onclick="setM('bg',false)">غير جيد (0)</button></div>`:'')
      +mkBlock()
      +`<button class="pri" style="width:100%;margin-top:.6em" onclick="saveC()">حفظ الحضور</button><hr>
-     <label for="sh">درجة الشيت (من ${num('clinical.sheet_max')})</label><input id="sh" type="number" step="0.25" min="0" max="${num('clinical.sheet_max')}" value="${e(M.sheet)}" oninput="M.sheet=this.value">
-     <button class="pri" style="width:100%;margin-top:.6em" onclick="saveSheet()">حفظ درجة الشيت</button>
+     ${pendMk().length?`<div class="st bad" role="alert">لا يمكن إدخال درجة الشيت: الطالب غائب عن جلسة ${pendMk().join(' و')} ولم يعوّض بعد. سجّل التعويض أولًا.</div>`:`<label for="sh">درجة الشيت (من ${num('clinical.sheet_max')})</label><input id="sh" type="number" step="0.25" min="0" max="${num('clinical.sheet_max')}" value="${e(M.sheet)}" oninput="M.sheet=this.value">
+     <button class="pri" style="width:100%;margin-top:.6em" onclick="saveSheet()">حفظ درجة الشيت</button>`}
      <div class="sum">الحضور والسلوك: <b>${m.att_beh_display??'-'}</b> / 5 &nbsp; الشيت: <b>${m.sheet_score_15??'-'}</b> / 15<br>الإجمالي: <b>${m.absent_all?'غـ':(m.total_20??'غير مكتمل')}</b> / 20${m.absent_all?'<br><span class="muted">الطالب غـ في كل الجلسات: لا يُسجَّل له حضور ولا شيت إلا بأمر المنسق.</span>':''}</div>`;
   } else {
     body=seg+(M.st==='present'?`<div class="bar2"><div><label for="at">الحضور (من ${num('lab.attendance_max')})</label><input id="at" type="number" min="0" max="${num('lab.attendance_max')}" step="0.5" value="${e(M.att)}" oninput="M.att=this.value"></div>
@@ -281,11 +284,11 @@ function drawStu(){
      <button class="pri" style="width:100%;margin-top:.6em" onclick="saveQ()">حفظ الكويز</button>
      <div class="sum">متوسط الحضور: <b>${m.avg_attendance_5??'-'}</b> &nbsp; متوسط المشاركة: <b>${m.avg_participation_5??'-'}</b><br>الإجمالي: <b>${m.total_30??'غير مكتمل'}</b> / 30</div>`;
   }
-  const o=$('#md'); const html=`<div class="sheet" role="dialog" aria-label="تقييم طالب"><div style="display:flex;justify-content:space-between;gap:1em"><div><h2 style="margin:0">${e(s.full_name)}</h2><div class="muted">${e(s.student_code)} - ${TN[S.t]} - الجلسة ${S.sn}</div></div><div style="display:flex;gap:.4em"><button onclick="navStu(-1)">السابق</button><button onclick="navStu(1)">التالي</button><button onclick="closeStu()" aria-label="إغلاق">إغلاق</button></div></div>${body}<div class="st" id="msg" role="status"></div></div>`;
+  const o=$('#md'); const html=`<div class="sheet" role="dialog" aria-label="تقييم طالب"><div style="display:flex;justify-content:space-between;gap:1em"><div style="flex:1;min-width:0"><h2 style="margin:0;overflow-wrap:anywhere;line-height:1.5">${e(s.full_name)}</h2><div class="muted">${e(s.student_code)} - ${TN[S.t]} - الجلسة ${S.sn}</div></div><div style="display:flex;gap:.4em"><button onclick="navStu(-1)">السابق</button><button onclick="navStu(1)">التالي</button><button onclick="closeStu()" aria-label="إغلاق">إغلاق</button></div></div>${body}<div class="st" id="msg" role="status"></div></div>`;
   if(o) o.innerHTML=html; else {const d=document.createElement('div'); d.className='modal'; d.id='md'; d.innerHTML=html; document.body.appendChild(d);}
 }
-function openFirst(){ if(S.g.stu.length) openStu(S.g.stu[0].student_code); }
-function navStu(d){const i=S.g.stu.findIndex(x=>x.student_code===M.code)+d;if(i<0||i>=S.g.stu.length)return;openStu(S.g.stu[i].student_code);}
+function openFirst(){ const x=S.g.stu.find(y=>!S.g.ass[y.student_code]); if(x) openStu(x.student_code); else drawList(); }
+function navStu(d){ let i=S.g.stu.findIndex(x=>x.student_code===M.code); for(i+=d;i>=0&&i<S.g.stu.length;i+=d){ if(!S.g.ass[S.g.stu[i].student_code]){ openStu(S.g.stu[i].student_code); return; } } closeStu(); drawList(); msg('لا يوجد طلاب آخرون غير مسجّلين في هذه الجلسة','good'); }
 function closeStu(){ $('#md')?.remove(); drawList(); }
 const msg=(t,c='')=>{const x=$('#msg'); if(x){x.textContent=t; x.className='st '+c;}};
 
@@ -304,7 +307,7 @@ async function write(table, ex, row, key, store){
              : await SB.from(table).insert(row).select();
   if (r.error) return msg('فشل الحفظ: '+tr(r.error.message)+' - البيانات المدخلة ما زالت أمامك','bad');
   if (!r.data.length) return msg('تم تعديل هذا السجل من مستخدم آخر. أغلق البطاقة وافتحها من جديد.','bad');
-  store(r.data[0]); await loadSummary(); drawStu(); msg('تم الحفظ','good');
+  store(r.data[0]); await loadSummary(M.code); drawStu(); msg('تم الحفظ','good');
 }
 async function saveC(){
   if(!M.st) return msg('اختر حاضر أو غائب','bad');
@@ -316,6 +319,7 @@ async function saveC(){
   await write('clinical_assessments',ex,ex?row:{...row,session_id:sess.id,student_code:M.code},0,x=>{S.g.ass[M.code]=x;S.g.all[M.code+'|'+S.sn]=x;});
 }
 async function saveSheet(){
+  if(pendMk().length) return msg('لا يمكن إدخال درجة الشيت قبل تعويض الغياب','bad');
   const v=parseFloat(M.sheet), mx=num('clinical.sheet_max');
   if(isNaN(v)||v<0||v>mx) return msg(`الدرجة يجب أن تكون بين 0 و ${mx}`,'bad');
   const ex=S.g.sheet[M.code];
@@ -342,28 +346,33 @@ async function saveQ(){
 
 /* ---------- staff (admin / coordinator) ---------- */
 const TYPES=['antenatal','labor','postnatal','lab'];
-async function all(t,sel,f){let o=[],i=0;for(;;){let q=SB.from(t).select(sel).range(i,i+999);if(f)q=f(q);const{data,error}=await q;if(error)throw error;o=o.concat(data);if(data.length<1000)return o;i+=1000;}}
+async function all(t,sel,f){
+  const pg=i=>{let q=SB.from(t).select(sel,i?undefined:{count:'exact'}).range(i,i+999);return f?f(q):q;};
+  const r0=await pg(0); if(r0.error) throw r0.error; const n=r0.count||0; if(n<=1000) return r0.data;
+  const rest=await Promise.all(Array.from({length:Math.ceil((n-1000)/1000)},(_,k)=>pg(1000*(k+1))));
+  return rest.reduce((a,r)=>{if(r.error)throw r.error;return a.concat(r.data);},r0.data);
+}
 async function staffView(tab){
   S.tab=tab||S.tab||'sum'; app.innerHTML=shell('<p>جارٍ التحميل...</p>',e(S.period?.name||'لا توجد فترة مفتوحة'));
   const p=S.period?.id;
   try{
-    const [grp,docs,asg,cl,lb,cnt,stu,gt]=await Promise.all([all('groups','code,division',q=>q.order('code')),all('doctors','user_id,full_name,role,active',q=>q.order('user_id')),
+    const [grp,docs,asg,cl,lb,stu,gt]=await Promise.all([all('groups','code,division',q=>q.order('code')),all('doctors','user_id,full_name,role,active',q=>q.order('user_id')),
       all('doctor_group_assignments','id,doctor_id,group_code,training_type_code',q=>q.order('id')),
       p?all('v_clinical_summary','*',q=>q.eq('period_id',p).order('student_code').order('training_type_code')):[],
       p?all('v_lab_summary','*',q=>q.eq('period_id',p).order('student_code')):[],
-      SB.from('students').select('*',{count:'exact',head:true}),
       all('students','student_code,group_code,serial_no,full_name',q=>q.order('student_code')),
       p?all('v_grand_total','*',q=>q.eq('period_id',p).order('student_code')):[]]);
-    S.st={grp:grp.sort((a,b)=>nat(a.code,b.code)),docs,asg,cl,lb,stu,gt,n:cnt.count||0};
+    S.st={grp:grp.sort((a,b)=>nat(a.code,b.code)),docs,asg,cl,lb,stu,gt,n:stu.length,at:Date.now()};
   }catch(er){app.innerHTML=shell(`<div class="card">فشل التحميل: ${e(er.message)}</div>`);return;}
   drawStaff();
 }
 function rowsFor(t){return t==='lab'?S.st.lb:S.st.cl.filter(x=>x.training_type_code===t);}
 const isDone=x=>x.status==='complete'||x.absent_all;
+function showTab(k){ S.tab=k; if(S.st&&Date.now()-S.st.at<120000) drawStaff(); else staffView(k); }
 function drawStaff(){
   const {grp,docs,asg,cl,lb,n}=S.st, tab=S.tab, adm=S.me.role==='admin';
   const inc=TYPES.reduce((a,t)=>a+rowsFor(t).filter(x=>!isDone(x)).length,0);
-  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة']].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="staffView('${k}')">${l}</button>`).join('');
+  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة']].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
   const kpi=`<div class="grid"><div class="card"><div class="muted">الطلاب</div><div class="big">${n}</div></div><div class="card"><div class="muted">المجموعات</div><div class="big">${grp.length}</div></div><div class="card"><div class="muted">الدكاترة</div><div class="big">${docs.filter(d=>d.role==='doctor').length}</div></div><div class="card"><div class="muted">تقييمات غير مكتملة</div><div class="big">${inc}</div></div></div>`;
   app.innerHTML=shell(`<h2>لوحة ${adm?'مدير النظام':'المنسق'}</h2>${kpi}<div class="seg" style="margin:.8em 0">${tabs}</div><div id="tb"></div>`,e(S.period?.name||''));
   ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,docs:tabDocs,audit:tabAudit})[tab]();
@@ -388,7 +397,7 @@ function tabScores(){
   <div><label for="fs">الحالة</label><select id="fs"><option value="">الكل</option><option value="done" ${F.s==='done'?'selected':''}>مكتمل</option><option value="inc" ${F.s==='inc'?'selected':''}>غير مكتمل</option></select></div></div>
   <input id="fq" placeholder="بحث بالاسم" value="${e(F.q)}"><div style="margin:.6em 0;display:flex;gap:.5em"><button class="pri" id="xb" onclick="exportTemplate()">تصدير كشف الدرجات (شكل القسم)</button><button onclick="exportX()">تصدير الجدول المعروض</button><button onclick="window.print()">طباعة / PDF</button></div><div id="tt"></div>`;
   ['ft','fg','fs'].forEach(i=>$('#'+i).onchange=ev=>{F[{ft:'t',fg:'g',fs:'s'}[i]]=ev.target.value;drawTable();});
-  $('#fq').oninput=ev=>{F.q=ev.target.value;drawTable();}; drawTable();
+  let _t;$('#fq').oninput=ev=>{F.q=ev.target.value;clearTimeout(_t);_t=setTimeout(drawTable,150);}; drawTable();
 }
 function filtered(){const F=S.f;return rowsFor(F.t).filter(x=>(!F.g||x.group_code===F.g)&&(!F.q||x.full_name.includes(F.q.trim()))&&(!F.s||(F.s==='done')===!!isDone(x)));}
 function drawTable(){
@@ -436,9 +445,73 @@ async function resetPw(id){const p=prompt('كلمة المرور الجديدة 
 async function delAsg(d,g){if(!confirm('إلغاء إسناد المجموعة '+g+'؟'))return;const r=await SB.from('doctor_group_assignments').delete().eq('doctor_id',d).eq('group_code',g);if(r.error)return alert(r.error.message);staffView('docs');}
 async function tabAudit(){
   $('#tb').innerHTML='<p>جارٍ التحميل...</p>';
-  const r=await SB.from('audit_logs').select('*').order('id',{ascending:false}).limit(100);
+  const adm=S.me.role==='admin';
+  let r,cs=[],ls=[];
+  try{
+    [r,cs,ls]=await Promise.all([SB.from('audit_logs').select('*').order('id',{ascending:false}).limit(200),
+      all('clinical_sessions','id,group_code,training_type_code,session_no,week_no'),
+      all('lab_sessions','id,group_code,session_no,week_no')]);
+  }catch(er){$('#tb').innerHTML='فشل: '+e(er.message);return;}
   if(r.error){$('#tb').innerHTML='فشل: '+e(r.error.message);return;}
-  $('#tb').innerHTML=`<div class="tw"><table><tr><th>الوقت</th><th>المستخدم</th><th>الجدول</th><th>العملية</th><th>قبل</th><th>بعد</th></tr>${r.data.map(a=>`<tr><td dir="ltr">${new Date(a.at).toLocaleString('en-GB')}</td><td>${e(a.user_name||'')}</td><td>${e(a.table_name)}</td><td>${e(a.action)}</td><td dir="ltr" class="muted">${e(JSON.stringify(a.old_data||{}).slice(0,120))}</td><td dir="ltr" class="muted">${e(JSON.stringify(a.new_data||{}).slice(0,120))}</td></tr>`).join('')}</table></div>`;
+  const stu={},doc={},cses={},lses={};
+  S.st.stu.forEach(x=>stu[x.student_code]=x.full_name); S.st.docs.forEach(x=>doc[x.user_id]=x.full_name);
+  cs.forEach(x=>cses[x.id]=x); ls.forEach(x=>lses[x.id]=x);
+  const ROLE={doctor:'دكتور',coordinator:'منسق',admin:'مدير'}, BEH=v=>v===true?'جيد':v===false?'غير جيد':'';
+  const ST=v=>v==='present'?'حاضر':v==='absent'?'غائب':(v||'');
+  const nm=c=>c?(stu[c]||c):'';
+  const sessTxt=(tbl,d)=>{const s=(tbl==='lab_assessments'?lses:cses)[d.session_id]; if(!s) return '';
+    return ' في جلسة '+s.session_no+(tbl==='lab_assessments'?' لاب':' '+(TN[s.training_type_code]||''))+' (مجموعة '+s.group_code+')';};
+  const describe=a=>{
+    const t=a.table_name, o=a.old_data||{}, n=a.new_data||{}, d=a.action==='DELETE'?o:n, act=a.action;
+    if(t==='clinical_assessments'||t==='lab_assessments'){
+      const who=nm(d.student_code), ss=sessTxt(t,d), lab=t==='lab_assessments';
+      if(act==='INSERT') return `سجّل ${n.status==='absent'?'غياب':'حضور'} الطالب ${who}${ss}`+(lab&&n.status==='present'?` (حضور ${n.attendance_score} - مشاركة ${n.participation_score})`:'')+(!lab&&n.status==='present'&&n.behavior_good!=null?` - السلوك ${BEH(n.behavior_good)}`:'');
+      if(act==='DELETE') return `حُذف سجل ${o.status==='absent'?'غياب':'حضور'} الطالب ${who}${ss}`;
+      const p=[];
+      if(o.status!==n.status) p.push(`غيّر حالة الطالب ${who}${ss} من ${ST(o.status)} إلى ${ST(n.status)}`);
+      if(!o.makeup_done&&n.makeup_done) p.push(`سجّل تعويض غياب الطالب ${who}${ss}`+(n.makeup_date?` بتاريخ ${n.makeup_date}`:''));
+      else if(o.makeup_done&&!n.makeup_done) p.push(`ألغى تعويض غياب الطالب ${who}${ss}`);
+      else if(n.makeup_done&&o.makeup_date!==n.makeup_date) p.push(`عدّل تاريخ تعويض الطالب ${who}${ss} إلى ${n.makeup_date}`);
+      if(o.behavior_good!==n.behavior_good&&n.behavior_good!=null) p.push(`غيّر سلوك الطالب ${who}${ss} إلى ${BEH(n.behavior_good)}`);
+      if(lab&&(o.attendance_score!==n.attendance_score||o.participation_score!==n.participation_score)&&n.status==='present') p.push(`عدّل درجات الطالب ${who}${ss}: حضور ${o.attendance_score??'-'} إلى ${n.attendance_score}، مشاركة ${o.participation_score??'-'} إلى ${n.participation_score}`);
+      return p.length?p.join('، '):`عدّل سجل الطالب ${who}${ss}`;
+    }
+    if(t==='clinical_sheet_scores'){
+      const who=nm(d.student_code), ty=TN[d.training_type_code]||'';
+      if(act==='INSERT') return `أدخل درجة شيت ${ty} للطالب ${who}: ${n.score} من ${num('clinical.sheet_max')}`;
+      if(act==='DELETE') return `حُذفت درجة شيت ${ty} للطالب ${who} (كانت ${o.score})`;
+      return `عدّل درجة شيت ${ty} للطالب ${who} من ${o.score} إلى ${n.score}`;
+    }
+    if(t==='lab_quizzes'){
+      const who=nm(d.student_code);
+      if(act==='INSERT') return `أدخل درجة Quiz ${n.quiz_no} للطالب ${who}: ${n.score}`;
+      if(act==='DELETE') return `حُذفت درجة Quiz ${o.quiz_no} للطالب ${who} (كانت ${o.score})`;
+      return `عدّل درجة Quiz ${n.quiz_no} للطالب ${who} من ${o.score} إلى ${n.score}`;
+    }
+    if(t==='doctor_group_assignments'){
+      const dn=doc[d.doctor_id]||'دكتور', ty=d.training_type_code==='lab'?'لاب':(TN[d.training_type_code]||'');
+      return act==='DELETE'?`ألغى إسناد مجموعة ${d.group_code} (${ty}) عن ${dn}`:`أسند مجموعة ${d.group_code} (${ty}) إلى ${dn}`;
+    }
+    if(t==='doctors'){
+      if(act==='INSERT') return `أنشأ حساب ${n.full_name} بدور ${ROLE[n.role]||n.role}`;
+      if(act==='DELETE') return `حذف حساب ${o.full_name}`;
+      if(o.active!==n.active) return `${n.active?'فعّل':'عطّل'} حساب ${n.full_name}`;
+      if(o.role!==n.role) return `غيّر دور ${n.full_name} من ${ROLE[o.role]||o.role} إلى ${ROLE[n.role]||n.role}`;
+      return `عدّل بيانات حساب ${n.full_name}`;
+    }
+    if(t==='assessment_settings'){
+      const nmS=(n.description||o.description||n.key||o.key||'إعداد').slice(0,70);
+      if(act==='UPDATE') return `غيّر الإعداد "${nmS}" من ${JSON.stringify(o.value)} إلى ${JSON.stringify(n.value)}`;
+      return act==='INSERT'?`أضاف الإعداد "${nmS}"`:`حذف الإعداد "${nmS}"`;
+    }
+    return `${act==='INSERT'?'أضاف':act==='DELETE'?'حذف':'عدّل'} سجلًا في ${t}`;
+  };
+  const fmt=x=>new Date(x).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',dateStyle:'medium',timeStyle:'short'});
+  const rows=r.data.map(a=>{
+    const who=a.user_name||'النظام';
+    return `<tr><td>${e(fmt(a.at))}</td><td><b>${e(who)}</b> ${e(describe(a))}`+(adm?`<details><summary class="muted">التفاصيل التقنية</summary><div dir="ltr" class="muted">${e(a.table_name+' / '+a.action+' / '+JSON.stringify(a.new_data||a.old_data||{}).slice(0,300))}</div></details>`:'')+`</td></tr>`;
+  }).join('');
+  $('#tb').innerHTML=`<div class="muted">آخر ${r.data.length} عملية</div><div class="tw"><table><tr><th>الوقت</th><th>ماذا حدث</th></tr>${rows||'<tr><td colspan="2">لا توجد عمليات</td></tr>'}</table></div>`;
 }
 
 function tabStu(){
