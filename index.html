@@ -755,7 +755,7 @@ window.addEventListener('online',()=>{bar();sync();}); window.addEventListener('
 setInterval(()=>{ if(navigator.onLine) sync(); },30000);
 boot=(f=>async function(){ await f(); bar(); sync();
   try{ if(S.me&&S.me.role==='doctor'&&navigator.onLine&&!S.g&&Date.now()-(+localStorage.getItem('nq_prewarm_'+S.me.user_id)||0)>6*3600e3) await prewarm(true); }catch(_){} })(boot);
-function crData(){ return window.__CR||(window.__CR=Object.assign({designer_name:'د. محمد محمود محمد سعد',designer_role:'تصميم وتطوير',designer_tagline:'نظامٌ صُمِّم بشغفٍ وإتقان، ليخدم رسالة التمريض ويرتقي بجودة التقييم العملي.',copyright:'© 2026 د. محمد محمود محمد سعد - جميع الحقوق محفوظة'},(()=>{try{return JSON.parse(localStorage.getItem('nq_credit')||'{}')}catch(_){return {}}})())); }
+function crData(){ return window.__CR||(window.__CR=Object.assign({designer_name:'د. محمد محمود',designer_role:'تصميم وتطوير',designer_tagline:'نظامٌ صُمِّم بشغفٍ وإتقان، ليخدم رسالة التمريض ويرتقي بجودة التقييم العملي.',copyright:'2027'},(()=>{try{return JSON.parse(localStorage.getItem('nq_credit')||'{}')}catch(_){return {}}})())); }
 function crInner(){ const c=crData(); return `<div class="rl">${e(c.designer_role)}</div><div class="nm">${e(c.designer_name)}</div><div class="tg">${e(c.designer_tagline)}</div><div class="cp">${e(c.copyright)}</div>`; }
 function crHTML(){ return `<div class="credit">${crInner()}</div>`; }
 async function loadCredit(){ try{ const r=await SB.from('app_credits').select('key,value'); if(r.error||!r.data||!r.data.length) return; const o={}; r.data.forEach(x=>o[x.key]=x.value); Object.assign(crData(),o); localStorage.setItem('nq_credit',JSON.stringify(o)); document.querySelectorAll('.credit').forEach(el=>el.innerHTML=crInner()); }catch(_){} }
