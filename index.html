@@ -219,7 +219,7 @@ async function loadSummary(only){
 }
 function drawGroup(){
   const lab=S.t==='lab', {gc,sess,sessions}=S.g;
-  const nMax=lab?Math.min(sessions.length+1,20):num('clinical.sessions_per_type');
+  const nMax=lab?num('lab.sessions'):num('clinical.sessions_per_type');
   const opts=Array.from({length:nMax},(_,i)=>`<option value="${i+1}" ${i+1===S.sn?'selected':''}>الجلسة ${i+1}</option>`).join('');
   const weeks=S.period.weeks||6;
   const wk=sess?`<div class="card"><div class="muted">الأسبوع</div><b>${sess.week_no}</b></div>`
@@ -242,7 +242,7 @@ function drawList(){
     $('#ls').innerHTML=`<div class="row" style="justify-content:center"><b>${left?`المتبقي ${left} طالب لم يُسجَّل في هذه الجلسة`:'تم تسجيل جميع الطلاب في هذه الجلسة ✓'}</b></div><div class="row" style="justify-content:center"><span class="muted">للرجوع إلى طالب سبق تسجيله أو متأخر اكتب اسمه في البحث</span></div>${left?'<button class="row" onclick="openFirst()" style="justify-content:center">البدء من أول طالب لم يُسجَّل</button>':''}<button class="row" onclick="S.showAll=true;drawList()" style="justify-content:center">عرض كل الطلاب</button>`; return; }
   const rows=S.g.stu.filter(s=>!q||s.full_name.includes(q)).map(s=>{
     const a=S.g.ass[s.student_code], m=S.g.sum[s.student_code]||{};
-    const c=!a?'<span class="chip">لم يُسجَّل</span>':a.status==='present'?'<span class="chip c">حاضر</span>':`<span class="chip a">غـ${a.makeup_done?' (عوّض)':''}</span>`;
+    const c=!a?'<span class="chip">لم يُسجَّل</span>':a.status==='present'?'<span class="chip c">حاضر</span>':`<span class="chip a">غـ${a.makeup_done?(a.sick_excuse?' (عوّض - مرضي)':' (عوّض)'):''}</span>`;
     const tot=lab?m.total_30:m.total_20, ds=m.absent_all?'غـ':(tot!=null?tot:'غير مكتمل');
     return `<button class="row" onclick="openStu('${s.student_code}')"><span class="n">${s.serial_no}</span><span class="nm">${e(s.full_name)}</span>${c}${a&&a._pending?'<span class="muted" title="محفوظ على الجهاز ولم يصل للخادم">⏳</span>':''}<span class="muted">${ds}</span></button>`}).join('');
   $('#ls').innerHTML=(rows||'<div class="row">لا توجد نتائج</div>')+(!q&&S.showAll?'<button class="row" onclick="S.showAll=false;drawList()" style="justify-content:center">إخفاء القائمة</button>':'');
@@ -252,6 +252,7 @@ function drawList(){
 function openStu(code){
   const a=S.g.ass[code], lab=S.t==='lab', sh=S.g.sheet[code];
   M={code, st:a?a.status:null, bg:a?a.behavior_good:null, mk:!!a?.makeup_done,
+     ug:(!lab&&a&&a.uniform_score!=null)?a.uniform_score>0:null, lbg:(lab&&a&&a.behavior_score!=null)?a.behavior_score>0:null,
      att:a?.attendance_score??'', part:a?.participation_score??'', sheet:sh?sh.score:'',
      q1:S.g.quiz[code+'|1']?.score??'', q2:S.g.quiz[code+'|2']?.score??''};
   drawStu(); const sh0=document.querySelector('.sheet'); if(sh0) sh0.scrollTop=0;
@@ -261,7 +262,8 @@ function mkBlock(){
   const n=num('clinical.sessions_per_type'), today=new Date().toLocaleDateString('en-CA'); let h='<hr><div class="muted">تعويض الغياب (اكتب تاريخ التعويض)</div>';
   for(let i=1;i<=n;i++){const a=S.g.all[M.code+'|'+i];
     if(a&&a.status==='absent') h+=`<div class="bar2" style="align-items:end;margin:.3em 0"><div><label for="mkd${i}">تاريخ تعويض جلسة ${i}</label><input type="date" id="mkd${i}" value="${e(a.makeup_date||today)}" ${a.makeup_done?`onchange="setMkDate(${i},this.value)"`:''}></div>
-      <button class="${a.makeup_done?'on':''}" onclick="toggleMk(${i})">${a.makeup_done?'✓ تم التعويض (إلغاء)':'تسجيل التعويض'}</button></div>`;
+      <label class="gc" for="sk${i}" style="align-self:end;min-height:44px"><input type="checkbox" id="sk${i}" ${a.sick_excuse?'checked':''} onchange="toggleSick(${i})"> مرضي</label>
+      <button class="${a.makeup_done?'on':''}" onclick="toggleMk(${i})">${a.makeup_done?'✓ تم التعويض (إلغاء)':'تسجيل التعويض'}</button></div>${a.sick_excuse?`<div class="muted">إذن مرضي: عند تسجيل التعويض تُحسب الدرجة كاملة (${num('clinical.attendance_max')+num('clinical.behavior_max')+num('clinical.uniform_max')} من ${num('clinical.attendance_max')+num('clinical.behavior_max')+num('clinical.uniform_max')}) للحضور والسلوك واليونيفورم.</div>`:''}`;
     else h+=`<div class="muted">جلسة ${i}: ${a?'حاضر - لا يحتاج تعويض':'لم تُسجَّل'}</div>`;}
   return h;
 }
@@ -270,6 +272,11 @@ async function toggleMk(i){
   let row; if(a.makeup_done) row={makeup_done:false,makeup_date:null};
   else{const d=$('#mkd'+i)?.value; if(!d) return msg('اكتب تاريخ التعويض','bad'); row={makeup_done:true,makeup_date:d};}
   await write('clinical_assessments',a,row,0,x=>{S.g.all[M.code+'|'+i]=x; if(i===S.sn) S.g.ass[M.code]=x;});
+}
+async function toggleSick(i){
+  const a=S.g.all[M.code+'|'+i]; if(!a) return;
+  await write('clinical_assessments',a,{sick_excuse:!a.sick_excuse},0,x=>{S.g.all[M.code+'|'+i]=x; if(i===S.sn) S.g.ass[M.code]=x;});
+  const cb=$('#sk'+i); if(cb) cb.checked=!!S.g.all[M.code+'|'+i]?.sick_excuse;
 }
 async function setMkDate(i,d){
   const a=S.g.all[M.code+'|'+i]; if(!a||!d) return;
@@ -281,20 +288,22 @@ function drawStu(){
   const seg=`<div class="seg"><button class="ok ${M.st==='present'?'on':''}" onclick="setM('st','present')">حاضر</button><button class="no ${ab?'on':''}" onclick="setM('st','absent')">غائب (غـ)</button></div>`;
   let body;
   if(!lab){
-    body=seg+(M.st==='present'?`<div class="muted">السلوك</div><div class="seg"><button class="${M.bg===true?'on':''}" onclick="setM('bg',true)">سلوك جيد (${num('clinical.behavior_max')})</button><button class="${M.bg===false?'on':''}" onclick="setM('bg',false)">غير جيد (0)</button></div>`:'')
+    body=seg+(M.st==='present'?`<div class="muted">الحضور والغياب: ${num('clinical.attendance_max')} تلقائيًا عند الحضور</div><div class="muted">السلوك</div><div class="seg"><button class="${M.bg===true?'on':''}" onclick="setM('bg',true)">سلوك جيد (${num('clinical.behavior_max')})</button><button class="${M.bg===false?'on':''}" onclick="setM('bg',false)">غير جيد (0)</button></div><div class="muted">اليونيفورم</div><div class="seg"><button class="${M.ug===true?'on':''}" onclick="setM('ug',true)">يونيفورم كامل (${num('clinical.uniform_max')})</button><button class="${M.ug===false?'on':''}" onclick="setM('ug',false)">غير كامل (0)</button></div>`:'')
      +mkBlock()
      +`<button class="pri" style="width:100%;margin-top:.6em" onclick="saveC()">حفظ الحضور</button><hr>
      ${pendMk().length?`<div class="st bad" role="alert">لا يمكن إدخال درجة الشيت: الطالب غائب عن جلسة ${pendMk().join(' و')} ولم يعوّض بعد. سجّل التعويض أولًا.</div>`:`<label for="sh">درجة الشيت (من ${num('clinical.sheet_max')})</label><input id="sh" type="number" step="0.25" min="0" max="${num('clinical.sheet_max')}" value="${e(M.sheet)}" oninput="M.sheet=this.value">
      <button class="pri" style="width:100%;margin-top:.6em" onclick="saveSheet()">حفظ درجة الشيت</button>`}
-     <div class="sum">الحضور والسلوك: <b>${m.att_beh_display??'-'}</b> / 5 &nbsp; الشيت: <b>${m.sheet_score_15??'-'}</b> / 15<br>الإجمالي: <b>${m.absent_all?'غـ':(m.total_20??'غير مكتمل')}</b> / 20${m.absent_all?'<br><span class="muted">الطالب غـ في كل الجلسات: لا يُسجَّل له حضور ولا شيت إلا بأمر المنسق.</span>':''}</div>`;
+     <div class="sum">الحضور والسلوك واليونيفورم: <b>${m.att_beh_display??'-'}</b> / ${num('clinical.attendance_max')+num('clinical.behavior_max')+num('clinical.uniform_max')} &nbsp; الشيت: <b>${m.sheet_score_15??'-'}</b> / 15<br>الإجمالي: <b>${m.absent_all?'غـ':(m.total_20??'غير مكتمل')}</b> / 20${m.absent_all?'<br><span class="muted">الطالب غـ في كل الجلسات: لا يُسجَّل له حضور ولا شيت إلا بأمر المنسق.</span>':''}</div>`;
   } else {
-    body=seg+(M.st==='present'?`<div class="bar2"><div><label for="at">الحضور (من ${num('lab.attendance_max')})</label><input id="at" type="number" min="0" max="${num('lab.attendance_max')}" step="0.5" value="${e(M.att)}" oninput="M.att=this.value"></div>
-     <div><label for="pt">المشاركة (من ${num('lab.participation_max')})</label><input id="pt" type="number" min="0" max="${num('lab.participation_max')}" step="0.5" value="${e(M.part)}" oninput="M.part=this.value"></div></div>`:'')
+    const ownP=Number(S.g.ass[M.code]?.participation_score||0), partHint=(Number(m.participation_4||0)>0&&ownP===0)?`<div class="muted">أخذ هذا الطالب درجة المشاركة (${m.participation_4} من ${num('lab.participation_max')}) في جلسة أخرى.</div>`:'';
+    const labAtt=num('lab.attendance_max')*num('lab.sessions'), labBeh=num('lab.behavior_max')*num('lab.sessions');
+    body=seg+(M.st==='present'?`<div class="muted">الحضور والغياب: ${num('lab.attendance_max')} تلقائيًا عند الحضور</div><div class="muted">السلوك واليونيفورم</div><div class="seg"><button class="${M.lbg===true?'on':''}" onclick="setM('lbg',true)">جيد (${num('lab.behavior_max')})</button><button class="${M.lbg===false?'on':''}" onclick="setM('lbg',false)">غير جيد (0)</button></div>
+     <label for="pt">المشاركة (من ${num('lab.participation_max')}) - تُمنح مرة واحدة فقط خلال الجلسات</label><input id="pt" type="number" min="0" max="${num('lab.participation_max')}" step="0.25" placeholder="0" value="${e(M.part)}" oninput="M.part=this.value">${partHint}`:'')
      +`<button class="pri" style="width:100%;margin-top:.6em" onclick="saveL()">حفظ الجلسة</button><hr>
      <div class="bar2"><div><label for="q1">Quiz 1 (من ${num('lab.quiz1_max')})</label><input id="q1" type="number" min="0" step="0.5" value="${e(M.q1)}" oninput="M.q1=this.value"></div>
      <div><label for="q2">Quiz 2 (من ${num('lab.quiz2_max')})</label><input id="q2" type="number" min="0" step="0.5" value="${e(M.q2)}" oninput="M.q2=this.value"></div></div>
      <button class="pri" style="width:100%;margin-top:.6em" onclick="saveQ()">حفظ الكويز</button>
-     <div class="sum">متوسط الحضور: <b>${m.avg_attendance_5??'-'}</b> &nbsp; متوسط المشاركة: <b>${m.avg_participation_5??'-'}</b><br>الإجمالي: <b>${m.total_30??'غير مكتمل'}</b> / 30</div>`;
+     <div class="sum">الحضور: <b>${m.att_sum_3??'-'}</b> / ${labAtt} &nbsp; السلوك واليونيفورم: <b>${m.beh_sum_3??'-'}</b> / ${labBeh}<br>المشاركة: <b>${m.participation_4??'-'}</b> / ${num('lab.participation_max')} &nbsp; Quiz 1: <b>${m.quiz1_10??'-'}</b> &nbsp; Quiz 2: <b>${m.quiz2_10??'-'}</b><br>الإجمالي: <b>${m.total_30??'غير مكتمل'}</b> / ${num('lab.total_max')}</div>`;
   }
   const o=$('#md'); const html=`<div class="sheet" role="dialog" aria-label="تقييم طالب"><div style="display:flex;justify-content:space-between;gap:1em"><div style="flex:1;min-width:0"><h2 style="margin:0;overflow-wrap:anywhere;line-height:1.5">${e(s.full_name)}</h2><div class="muted">${e(s.student_code)} - ${TN[S.t]} - الجلسة ${S.sn}</div></div><div style="display:flex;gap:.4em"><button onclick="navStu(-1)">السابق</button><button onclick="navStu(1)">التالي</button><button onclick="closeStu()" aria-label="إغلاق">إغلاق</button></div></div>${body}<div class="st" id="msg" role="status"></div></div>`;
   if(o) o.innerHTML=html; else {const d=document.createElement('div'); d.className='modal'; d.id='md'; d.innerHTML=html; document.body.appendChild(d);}
@@ -336,9 +345,10 @@ async function write(table, ex, row, key, store){
 async function saveC(){
   if(!M.st) return msg('اختر حاضر أو غائب','bad');
   if(M.st==='present' && M.bg===null) return msg('اختر السلوك','bad');
+  if(M.st==='present' && M.ug==null) return msg('اختر اليونيفورم','bad');
   const sess=await ensureSession(); if(!sess) return; const pr=M.st==='present';
   const row={status:M.st, attendance_score:pr?num('clinical.attendance_max'):null, behavior_good:pr?M.bg:null,
-             behavior_score:pr?(M.bg?num('clinical.behavior_max'):0):null, makeup_done:!pr&&!!S.g.ass[M.code]?.makeup_done, makeup_date:pr?null:(S.g.ass[M.code]?.makeup_date||null)};
+             behavior_score:pr?(M.bg?num('clinical.behavior_max'):0):null, uniform_score:pr?(M.ug?num('clinical.uniform_max'):0):null, sick_excuse:pr?false:!!S.g.ass[M.code]?.sick_excuse, makeup_done:!pr&&!!S.g.ass[M.code]?.makeup_done, makeup_date:pr?null:(S.g.ass[M.code]?.makeup_date||null)};
   const ex=S.g.ass[M.code];
   await write('clinical_assessments',ex,ex?row:{...row,session_id:sess.id,student_code:M.code},0,x=>{S.g.ass[M.code]=x;S.g.all[M.code+'|'+S.sn]=x;});
 }
@@ -351,11 +361,11 @@ async function saveSheet(){
 }
 async function saveL(){
   if(!M.st) return msg('اختر حاضر أو غائب','bad');
-  const pr=M.st==='present', a=parseFloat(M.att), p=parseFloat(M.part);
-  if(pr){ if(isNaN(a)||a<0||a>num('lab.attendance_max')) return msg('درجة الحضور غير صحيحة','bad');
+  const pr=M.st==='present', p=(M.part===''||M.part==null)?0:parseFloat(M.part);
+  if(pr){ if(M.lbg==null) return msg('اختر السلوك واليونيفورم','bad');
           if(isNaN(p)||p<0||p>num('lab.participation_max')) return msg('درجة المشاركة غير صحيحة','bad'); }
   const sess=await ensureSession(); if(!sess) return;
-  const row={status:M.st, attendance_score:pr?a:null, participation_score:pr?p:null}, ex=S.g.ass[M.code];
+  const row={status:M.st, attendance_score:pr?num('lab.attendance_max'):null, behavior_score:pr?(M.lbg?num('lab.behavior_max'):0):null, participation_score:pr?p:null}, ex=S.g.ass[M.code];
   await write('lab_assessments',ex,ex?row:{...row,session_id:sess.id,student_code:M.code},0,x=>S.g.ass[M.code]=x);
 }
 async function saveQ(){
@@ -410,8 +420,8 @@ function tabSum(){
   $('#tb').innerHTML=`<div class="tw"><table><tr><th>النوع</th><th>السجلات</th><th>مكتمل</th><th>غير مكتمل</th><th>غـ كل الجلسات</th><th>النسبة</th></tr>${r}</table></div>
   <h3>اكتمال كل مجموعة (مكتمل/إجمالي)</h3><div class="tw"><table><tr><th>المجموعة</th>${TYPES.map(t=>`<th>${TN[t]}</th>`).join('')}</tr>${gr}</table></div>`;
 }
-const COLS={clin:[['serial_no','م'],['student_code','الكود'],['full_name','الاسم'],['group_code','المجموعة'],['sessions_recorded','الجلسات'],['sessions_attended','حضر'],['sessions_absent','غياب'],['att_beh_display','حضور وسلوك /5'],['sheet_score_15','الشيت /15'],['total_20','الإجمالي /20'],['status','الحالة']],
- lab:[['serial_no','م'],['student_code','الكود'],['full_name','الاسم'],['group_code','المجموعة'],['sessions_recorded','الجلسات'],['avg_attendance_5','متوسط الحضور /5'],['avg_participation_5','متوسط المشاركة /5'],['quiz1_10','Quiz1 /10'],['quiz2_10','Quiz2 /10'],['total_30','الإجمالي /30'],['status','الحالة']]};
+const COLS={clin:[['serial_no','م'],['student_code','الكود'],['full_name','الاسم'],['group_code','المجموعة'],['sessions_recorded','الجلسات'],['sessions_attended','حضر'],['sessions_absent','غياب'],['att_beh_display','حضور وسلوك ويونيفورم /5'],['sheet_score_15','الشيت /15'],['total_20','الإجمالي /20'],['status','الحالة']],
+ lab:[['serial_no','م'],['student_code','الكود'],['full_name','الاسم'],['group_code','المجموعة'],['sessions_recorded','الجلسات'],['att_sum_3','حضور /3'],['beh_sum_3','سلوك ويونيفورم /3'],['participation_4','مشاركة /4'],['quiz1_10','Quiz1 /10'],['quiz2_10','Quiz2 /10'],['total_30','الإجمالي /30'],['status','الحالة']]};
 const STAT={complete:'مكتمل',incomplete:'غير مكتمل'};
 function cell(x,k){const v=x[k];if(v==null||v==='')return(['total_20','total_30','att_beh_display','sheet_score_15'].includes(k)&&x.absent_all)?'غـ':(k.includes('score')||k.startsWith('total')||k.startsWith('avg')||k.startsWith('quiz')?'غير مكتمل':'');return k==='status'?(STAT[v]||v):v;}
 function tabScores(){
@@ -489,13 +499,16 @@ async function tabAudit(){
     const t=a.table_name, o=a.old_data||{}, n=a.new_data||{}, d=a.action==='DELETE'?o:n, act=a.action;
     if(t==='clinical_assessments'||t==='lab_assessments'){
       const who=nm(d.student_code), ss=sessTxt(t,d), lab=t==='lab_assessments';
-      if(act==='INSERT') return `سجّل ${n.status==='absent'?'غياب':'حضور'} الطالب ${who}${ss}`+(lab&&n.status==='present'?` (حضور ${n.attendance_score} - مشاركة ${n.participation_score})`:'')+(!lab&&n.status==='present'&&n.behavior_good!=null?` - السلوك ${BEH(n.behavior_good)}`:'');
+      if(act==='INSERT') return `سجّل ${n.status==='absent'?'غياب':'حضور'} الطالب ${who}${ss}`+(lab&&n.status==='present'?` (حضور ${n.attendance_score} - سلوك ويونيفورم ${n.behavior_score??'-'} - مشاركة ${n.participation_score})`:'')+(!lab&&n.status==='present'&&n.behavior_good!=null?` - السلوك ${BEH(n.behavior_good)}`:'')+(!lab&&n.status==='present'&&n.uniform_score!=null?` - اليونيفورم ${n.uniform_score>0?'كامل':'غير كامل'}`:'');
       if(act==='DELETE') return `حُذف سجل ${o.status==='absent'?'غياب':'حضور'} الطالب ${who}${ss}`;
       const p=[];
       if(o.status!==n.status) p.push(`غيّر حالة الطالب ${who}${ss} من ${ST(o.status)} إلى ${ST(n.status)}`);
       if(!o.makeup_done&&n.makeup_done) p.push(`سجّل تعويض غياب الطالب ${who}${ss}`+(n.makeup_date?` بتاريخ ${n.makeup_date}`:''));
       else if(o.makeup_done&&!n.makeup_done) p.push(`ألغى تعويض غياب الطالب ${who}${ss}`);
       else if(n.makeup_done&&o.makeup_date!==n.makeup_date) p.push(`عدّل تاريخ تعويض الطالب ${who}${ss} إلى ${n.makeup_date}`);
+      if(!lab&&o.uniform_score!==n.uniform_score&&n.uniform_score!=null) p.push(`غيّر يونيفورم الطالب ${who}${ss} إلى ${n.uniform_score>0?'كامل':'غير كامل'}`);
+      if(!lab&&!o.sick_excuse&&n.sick_excuse) p.push(`سجّل إذن مرضي للطالب ${who}${ss}`); else if(!lab&&o.sick_excuse&&!n.sick_excuse) p.push(`ألغى الإذن المرضي للطالب ${who}${ss}`);
+      if(lab&&o.behavior_score!==n.behavior_score&&n.behavior_score!=null&&n.status==='present') p.push(`غيّر سلوك ويونيفورم الطالب ${who}${ss} إلى ${n.behavior_score}`);
       if(o.behavior_good!==n.behavior_good&&n.behavior_good!=null) p.push(`غيّر سلوك الطالب ${who}${ss} إلى ${BEH(n.behavior_good)}`);
       if(lab&&(o.attendance_score!==n.attendance_score||o.participation_score!==n.participation_score)&&n.status==='present') p.push(`عدّل درجات الطالب ${who}${ss}: حضور ${o.attendance_score??'-'} إلى ${n.attendance_score}، مشاركة ${o.participation_score??'-'} إلى ${n.participation_score}`);
       return p.length?p.join('، '):`عدّل سجل الطالب ${who}${ss}`;
@@ -568,12 +581,12 @@ async function tabAbs(){
   try{[cs,ls,ca,la]=await Promise.all([
     all('clinical_sessions','id,group_code,training_type_code,week_no,session_no,session_date,created_at,doctor_id',q=>q.eq('period_id',p).order('id')),
     all('lab_sessions','id,group_code,week_no,session_no,session_date,created_at,doctor_id',q=>q.eq('period_id',p).order('id')),
-    all('clinical_assessments','id,session_id,student_code,makeup_done,makeup_date',q=>q.eq('status','absent').order('id')),
+    all('clinical_assessments','id,session_id,student_code,makeup_done,makeup_date,sick_excuse',q=>q.eq('status','absent').order('id')),
     all('lab_assessments','id,session_id,student_code',q=>q.eq('status','absent').order('id'))]);
   }catch(er){$('#tb').innerHTML='فشل: '+e(er.message);return;}
   const sm=Object.fromEntries(S.st.stu.map(x=>[x.student_code,x])), dn=Object.fromEntries(S.st.docs.map(d=>[d.user_id,d.full_name]));
   const cm=Object.fromEntries(cs.map(x=>[x.id,x])), lm=Object.fromEntries(ls.map(x=>[x.id,x])), rows=[];
-  const add=(s,a,t,mk)=>{if(!s)return;const st=sm[a.student_code]||{};rows.push({g:s.group_code,t,sn:s.session_no,wk:s.week_no,d:s.session_date||(s.created_at||'').slice(0,10),doc:dn[s.doctor_id]||'',ser:st.serial_no||0,name:st.full_name||a.student_code,mk,md:a.makeup_date||''});};
+  const add=(s,a,t,mk)=>{if(!s)return;const st=sm[a.student_code]||{};rows.push({g:s.group_code,t,sn:s.session_no,wk:s.week_no,d:s.session_date||(s.created_at||'').slice(0,10),doc:dn[s.doctor_id]||'',ser:st.serial_no||0,name:st.full_name||a.student_code,mk,md:a.makeup_date||'',sk:!!a.sick_excuse});};
   ca.forEach(a=>add(cm[a.session_id],a,cs.find(x=>x.id===a.session_id)?.training_type_code,a.makeup_done));
   la.forEach(a=>add(lm[a.session_id],a,'lab',null));
   const ti=t=>TYPES.indexOf(t);
@@ -589,12 +602,12 @@ function drawAbs(){
   <div><label for="at3">النوع</label><select id="at3"><option value="">الكل</option>${TYPES.map(t=>`<option value="${t}" ${F.t===t?'selected':''}>${TN[t]}</option>`).join('')}</select></div></div>
   <div style="margin:.6em 0;display:flex;gap:.5em"><button class="pri" onclick="exportAbs()">تصدير Excel</button><button onclick="window.print()">طباعة / PDF</button></div>
   <div class="muted">إجمالي حالات الغياب: ${rows.length}</div><div style="margin:.4em 0">${sum}</div>
-  <div class="tw"><table><thead><tr><th>المجموعة</th><th>النوع</th><th>الجلسة</th><th>الأسبوع</th><th>التاريخ</th><th>الدكتور</th><th>م</th><th>الطالب</th><th>التعويض</th></tr></thead><tbody>${rows.slice(0,800).map(r=>`<tr><td>${e(r.g)}</td><td>${TN[r.t]||''}</td><td>${r.sn}</td><td>${r.wk}</td><td dir="ltr">${e(r.d)}</td><td>${e(r.doc)}</td><td>${r.ser}</td><td>${e(r.name)}</td><td>${r.mk===null?'-':r.mk?'عوّض'+(r.md?' '+r.md:''):'لم يعوّض'}</td></tr>`).join('')}</tbody></table></div>`;
+  <div class="tw"><table><thead><tr><th>المجموعة</th><th>النوع</th><th>الجلسة</th><th>الأسبوع</th><th>التاريخ</th><th>الدكتور</th><th>م</th><th>الطالب</th><th>التعويض</th></tr></thead><tbody>${rows.slice(0,800).map(r=>`<tr><td>${e(r.g)}</td><td>${TN[r.t]||''}</td><td>${r.sn}</td><td>${r.wk}</td><td dir="ltr">${e(r.d)}</td><td>${e(r.doc)}</td><td>${r.ser}</td><td>${e(r.name)}</td><td>${r.mk===null?'-':r.mk?'عوّض'+(r.sk?' (مرضي)':'')+(r.md?' '+r.md:''):'لم يعوّض'}</td></tr>`).join('')}</tbody></table></div>`;
   $('#ag2').onchange=ev=>{S.abs.F.g=ev.target.value;drawAbs();}; $('#at3').onchange=ev=>{S.abs.F.t=ev.target.value;drawAbs();};
 }
 async function exportAbs(){
   if(!window.XLSX) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-  const rows=absFiltered(), aoa=[['المجموعة','النوع','الجلسة','الأسبوع','التاريخ','الدكتور','م','الطالب','التعويض'],...rows.map(r=>[r.g,TN[r.t]||'',r.sn,r.wk,r.d,r.doc,r.ser,r.name,r.mk===null?'-':r.mk?'عوّض'+(r.md?' '+r.md:''):'لم يعوّض'])];
+  const rows=absFiltered(), aoa=[['المجموعة','النوع','الجلسة','الأسبوع','التاريخ','الدكتور','م','الطالب','التعويض'],...rows.map(r=>[r.g,TN[r.t]||'',r.sn,r.wk,r.d,r.doc,r.ser,r.name,r.mk===null?'-':r.mk?'عوّض'+(r.sk?' (مرضي)':'')+(r.md?' '+r.md:''):'لم يعوّض'])];
   const ws=XLSX.utils.aoa_to_sheet(aoa),wb=XLSX.utils.book_new(); ws['!cols']=[10,12,8,8,12,24,6,34,12].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'الغياب'); wb.Workbook={Views:[{RTL:true}]};
   XLSX.writeFile(wb,`absence_${S.abs.F.g||'all'}_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -622,7 +635,7 @@ async function exportTemplate(){
       ws.getCell('B1').font={name:'Times New Roman',size:13,bold:true,color:{argb:'FF7F7F7F'}}; ws.getCell('B1').alignment=ctr;
       ws.getCell('A2').value=code; ws.getCell('A2').font={name:'Arial',size:14,bold:true}; ws.getCell('A2').alignment=ctr;
       const h3={A3:'Total (90)',B3:'Lab',G3:'Labour',J3:'Post',M3:'Ante',P3:'Names',Q3:'م'};
-      const h4=['Total (30)','Quiz2 (10)','Quiz1 (10)','Participation (5)','Absent (5)','Total (20)','Sheet (15)','Absent (5)','Total (20)','Sheet (15)','Absent (5)','Total (20)','Sheet (15)','Absent (5)'];
+      const h4=['Total (30)','Quiz2 (10)','Quiz1 (10)','Participation (4)','Absent (6)','Total (20)','Sheet (15)','Absent (5)','Total (20)','Sheet (15)','Absent (5)','Total (20)','Sheet (15)','Absent (5)'];
       for(let c=1;c<=17;c++){ for(const r of [3,4]){const x=ws.getCell(r,c);x.border=bd;x.alignment=ctr;x.font={name:'Arial',size:r===3?12:11,bold:true};} }
       for(const k in h3){ws.getCell(k).value=h3[k];}
       h4.forEach((t,i)=>{const x=ws.getCell(4,i+2);x.value=t;x.alignment={...ctr,textRotation:90};});
@@ -634,8 +647,8 @@ async function exportTemplate(){
         const r=5+i, l=L[s.student_code]||{}, g=G[s.student_code]||{};
         const cs=t=>C[s.student_code+'|'+t]||{};
         const clin=t=>{const c=cs(t);const ab=c.absent_all;return [v(c.total_20),v(c.sheet_score_15),ab?'غـ':v(c.att_beh_display)];};
-        const labAbs=l.sessions_recorded>0&&l.sessions_attended===0;
-        const row=[v(g.total_90),v(l.total_30),v(l.quiz2_10),v(l.quiz1_10),v(l.avg_participation_5),labAbs?'غـ':v(l.avg_attendance_5),
+        const labAbs=l.sessions_recorded>0&&l.sessions_attended===0, labRec=l.sessions_recorded>0, labAB=labRec?Number(l.att_sum_3||0)+Number(l.beh_sum_3||0):null;
+        const row=[v(g.total_90),v(l.total_30),v(l.quiz2_10),v(l.quiz1_10),labRec?v(l.participation_4):null,labAbs?'غـ':v(labAB),
           ...clin('labor'),...clin('postnatal'),...clin('antenatal'),s.full_name,s.serial_no];
         row.forEach((val,j)=>{const x=ws.getCell(r,j+1);x.value=val;x.border=bd;
           x.font={name:j>=15?'Arial':'Calibri',size:j>=15?12:11};
@@ -734,7 +747,7 @@ async function bar(){
   if(S.stale) t+=' • البيانات المعروضة محفوظة من آخر اتصال';
   b.style.background=(conf||err||S.auth)?'#b3261e':(pend||S.stale)?'#c8962b':'#0e7c86'; b.textContent=t;
 }
-const TL={clinical_assessments:'حضور وسلوك',clinical_sheet_scores:'درجة الشيت',lab_assessments:'حضور ومشاركة (معمل)',lab_quizzes:'اختبار'};
+const TL={clinical_assessments:'حضور وسلوك ويونيفورم',clinical_sheet_scores:'درجة الشيت',lab_assessments:'حضور وسلوك ومشاركة (معمل)',lab_quizzes:'اختبار'};
 async function syncPanel(){
   const all=(await opsAll()).filter(o=>o.uid===S.me?.user_id).sort((a,b)=>a.createdAt-b.createdAt);
   document.getElementById('sp')?.remove();
@@ -821,7 +834,7 @@ async function prewarm(auto){
       if(!types.has(t)){ types.add(t); await Promise.all([SB.from('students').select('group_code'),
         lab?SB.from('v_lab_summary').select('group_code,status').eq('period_id',p):SB.from('v_clinical_summary').select('group_code,status').eq('period_id',p).eq('training_type_code',t)]); }
       S.g={gc:a.group_code}; S.sn=1; await loadGroup();
-      if(lab){ const n=Math.min(S.g.sessions.length+1,20); for(let k=2;k<=n;k++){ S.sn=k; await loadGroup(); } }
+      if(lab){ const n=num('lab.sessions'); for(let k=2;k<=n;k++){ S.sn=k; await loadGroup(); } }
     }
   }finally{ S.g=keep.g; S.t=keep.t; S.sn=keep.sn; ov.remove(); }
   if(S.skipPW){}
