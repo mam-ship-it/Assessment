@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>تقييم التدريب العملي - تمريض</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://arbgzaiipplvqynpqmch.supabase.co">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#10343f;--teal:#0e7c86;--teal2:#e3f2f3;--gold:#c8962b;--bg:#f3f6f7;--line:#d6e0e3;--red:#b3362f;--green:#1f7a4d;--r:10px}
 *{box-sizing:border-box}
@@ -107,7 +107,16 @@ table tr:nth-child(even) td{background:#f3f9fb}table tr:hover td{background:#fff
 </style>
 <style>.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.9em}th,td{border:1px solid #ccd;padding:.4em .6em;text-align:right;white-space:nowrap}th{background:#e8f0f2;position:sticky;top:0}
 @media print{.top,.seg,.bar2,#fq,button,.muted{display:none!important}body{background:#fff}table{font-size:10px}thead{display:table-header-group}tr{page-break-inside:avoid}@page{size:landscape;margin:10mm}}.gp{display:flex;flex-wrap:wrap;gap:.4em;max-height:220px;overflow:auto;border:1px solid #ccd;padding:.5em;border-radius:6px}.gc{display:flex;align-items:center;gap:.3em;margin:0;padding:.2em .5em;border:1px solid #dde;border-radius:6px;cursor:pointer}.gc input{width:auto;min-height:auto}.sheet h2{white-space:normal;overflow:visible;text-overflow:clip}.row{height:auto}.sheet{max-height:calc(100vh - 16px)}.modal{padding:8px}</style>
-<style>.top::after{display:none}.lg{animation:none}.blob{animation-duration:30s}</style></head>
+<style>.top::after{display:none}.lg{animation:none}.blob{animation-duration:30s}</style><style>
+.credit{text-align:center;margin:22px auto 0;padding:14px 8px 4px;max-width:520px;position:relative}
+.credit:before{content:"";display:block;width:90px;height:2px;margin:0 auto 10px;background:linear-gradient(90deg,transparent,#f2b01e,transparent)}
+.credit .rl{font-size:12px;letter-spacing:.06em;color:#b88400;font-weight:600}
+.credit .nm{font-family:'Aref Ruqaa','Amiri','Noto Naskh Arabic',serif;font-size:27px;line-height:1.7;color:#10343f;font-weight:700}
+.credit .tg{font-size:12.5px;color:#5d7780;line-height:1.8;margin-top:2px}
+.credit .cp{font-size:11px;color:#8aa0a7;margin-top:6px}
+main>.credit{padding-bottom:64px}
+@media print{.credit{margin-top:10px}}
+</style></head>
 <body>
 <div id="app"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -131,7 +140,7 @@ function loginView(msg=''){
   app.innerHTML = `<div class="stage"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i><form class="card login" id="lf"><div class="ring"><img src="${LOGO}" alt="شعار المعهد الفني للتمريض"></div><div class="inst">المعهد الفني للتمريض<br>كلية التمريض - جامعة المنصورة</div><svg class="ecg" viewBox="0 0 260 34" aria-hidden="true"><path d="M0 18h70l8-10 10 22 10-28 10 22 8-6h144"/></svg><h1>نظام تقييم التدريب العملي</h1><div class="muted">سجّل الدخول بحسابك</div>
   <label for="em">الاسم</label><input id="em" type="text" autocomplete="username" required>
   <label for="pw">كلمة المرور</label><div class="pw"><input id="pw" type="password" autocomplete="current-password" required dir="ltr"><button type="button" id="sh">إظهار</button></div>
-  <div class="err" id="er">${e(msg)}</div><button class="pri" style="width:100%">تسجيل الدخول</button></form></div>`;
+  <div class="err" id="er">${e(msg)}</div><button class="pri" style="width:100%">تسجيل الدخول</button>${crHTML()}</form></div>`;
   $('#sh').onclick = () => { const p=$('#pw'); const h=p.type==='password'; p.type=h?'text':'password'; $('#sh').textContent=h?'إخفاء':'إظهار'; };
   $('#lf').onsubmit = async ev => {
     ev.preventDefault(); $('#er').textContent='جارٍ الدخول...';
@@ -141,7 +150,7 @@ function loginView(msg=''){
     if (error) $('#er').textContent='فشل تسجيل الدخول'; else boot();
   };
 }
-const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em"><button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}</main>`;
+const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em"><button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
 function goHome(){ $('#md')?.remove(); S.me.role==='doctor'?home():staffView(S.tab||'sum'); }
 async function logout(){ await SB.auth.signOut(); S.me=null; loginView(); }
 
@@ -746,6 +755,11 @@ window.addEventListener('online',()=>{bar();sync();}); window.addEventListener('
 setInterval(()=>{ if(navigator.onLine) sync(); },30000);
 boot=(f=>async function(){ await f(); bar(); sync();
   try{ if(S.me&&S.me.role==='doctor'&&navigator.onLine&&!S.g&&Date.now()-(+localStorage.getItem('nq_prewarm_'+S.me.user_id)||0)>6*3600e3) await prewarm(true); }catch(_){} })(boot);
+function crData(){ return window.__CR||(window.__CR=Object.assign({designer_name:'د. محمد محمود محمد سعد',designer_role:'تصميم وتطوير',designer_tagline:'نظامٌ صُمِّم بشغفٍ وإتقان، ليخدم رسالة التمريض ويرتقي بجودة التقييم العملي.',copyright:'© 2026 د. محمد محمود محمد سعد - جميع الحقوق محفوظة'},(()=>{try{return JSON.parse(localStorage.getItem('nq_credit')||'{}')}catch(_){return {}}})())); }
+function crInner(){ const c=crData(); return `<div class="rl">${e(c.designer_role)}</div><div class="nm">${e(c.designer_name)}</div><div class="tg">${e(c.designer_tagline)}</div><div class="cp">${e(c.copyright)}</div>`; }
+function crHTML(){ return `<div class="credit">${crInner()}</div>`; }
+async function loadCredit(){ try{ const r=await SB.from('app_credits').select('key,value'); if(r.error||!r.data||!r.data.length) return; const o={}; r.data.forEach(x=>o[x.key]=x.value); Object.assign(crData(),o); localStorage.setItem('nq_credit',JSON.stringify(o)); document.querySelectorAll('.credit').forEach(el=>el.innerHTML=crInner()); }catch(_){} }
+loadCredit();
 home=(f=>function(){ f(); try{
   const m=document.querySelector('main'); if(!m||S.me.role!=='doctor') return;
   const pw=+localStorage.getItem('nq_prewarm_'+S.me.user_id)||0, d=document.createElement('div'); d.className='card'; d.style.marginTop='1em';
