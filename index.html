@@ -407,10 +407,10 @@ function showTab(k){ S.tab=k; if(S.st&&Date.now()-S.st.at<120000) drawStaff(); e
 function drawStaff(){
   const {grp,docs,asg,cl,lb,n}=S.st, tab=S.tab, adm=S.me.role==='admin';
   const inc=TYPES.reduce((a,t)=>a+rowsFor(t).filter(x=>!isDone(x)).length,0);
-  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة']].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
+  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
   const kpi=`<div class="grid"><div class="card"><div class="muted">الطلاب</div><div class="big">${n}</div></div><div class="card"><div class="muted">المجموعات</div><div class="big">${grp.length}</div></div><div class="card"><div class="muted">الدكاترة</div><div class="big">${docs.filter(d=>d.role==='doctor').length}</div></div><div class="card"><div class="muted">تقييمات غير مكتملة</div><div class="big">${inc}</div></div></div>`;
   app.innerHTML=shell(`<h2>لوحة ${adm?'مدير النظام':'المنسق'}</h2>${kpi}<div class="seg" style="margin:.8em 0">${tabs}</div><div id="tb"></div>`,e(S.period?.name||''));
-  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,docs:tabDocs,audit:tabAudit})[tab]();
+  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,docs:tabDocs,audit:tabAudit,bk:tabBk})[tab]();
 }
 function tabSum(){
   const r=TYPES.map(t=>{const x=rowsFor(t),d=x.filter(isDone).length,a=x.filter(y=>y.absent_all).length;
@@ -530,6 +530,13 @@ async function tabAudit(){
       const dn=doc[d.doctor_id]||'دكتور', ty=d.training_type_code==='lab'?'لاب':(TN[d.training_type_code]||'');
       return act==='DELETE'?`ألغى إسناد مجموعة ${d.group_code} (${ty}) عن ${dn}`:`أسند مجموعة ${d.group_code} (${ty}) إلى ${dn}`;
     }
+    if(t==='students'){
+      const sn=d.full_name||'';
+      if(act==='INSERT') return `أضاف الطالب ${sn} إلى مجموعة ${n.group_code}`;
+      if(act==='DELETE') return `حذف الطالب ${sn} (مجموعة ${o.group_code})`;
+      if(o.group_code!==n.group_code) return `نقل الطالب ${sn} من مجموعة ${o.group_code} إلى مجموعة ${n.group_code}`;
+      return `عدّل بيانات الطالب ${sn}`;
+    }
     if(t==='doctors'){
       if(act==='INSERT') return `أنشأ حساب ${n.full_name} بدور ${ROLE[n.role]||n.role}`;
       if(act==='DELETE') return `حذف حساب ${o.full_name}`;
@@ -621,16 +628,38 @@ async function doMove(){
 async function delStu(){
   const codes=[...(S.sel||[])]; if(!codes.length||S.me.role!=='admin') return;
   let n; try{ n=(await recCount(codes,REC))+(await recCount(codes,['late_approvals'])); }catch(er){return flash('فشل: '+(er.message||er),'bad');}
-  if(!confirm('حذف '+codes.length+' طالب نهائيًا من النظام؟\n'+nameList(codes)+(n?'\n\nسيُحذف معهم أيضًا '+n+' سجل (تقييمات ودرجات) ولا يمكن التراجع.':''))) return;
-  if(n){ const w=prompt('لتأكيد حذف الطلاب مع سجلاتهم اكتب كلمة: حذف'); if((w||'').trim()!=='حذف') return flash('أُلغي الحذف','bad'); }
+  if(!confirm('حذف '+codes.length+' طالب من القوائم؟\n'+nameList(codes)+(n?'\n\nسيُحذف معهم '+n+' سجل (تقييمات ودرجات).':'')+'\n\nيُحفظ كل شيء في سلة المحذوفات (تبويب النسخ الاحتياطي) ويمكن استرجاعه.')) return;
   flash('جارٍ الحذف...');
+  const r=await SB.rpc('admin_delete_students',{codes});
+  if(r.error) return flash('فشل الحذف: '+r.error.message,'bad');
+  S.sel=new Set(); await staffView('stu'); flash('تم حذف '+r.data+' طالب. يمكن استرجاعهم من تبويب النسخ الاحتياطي','good');
+}
+async function tabBk(){
+  if(S.me.role!=='admin'){$('#tb').innerHTML='';return;}
+  $('#tb').innerHTML='<p>جارٍ التحميل...</p>';
+  const r=await SB.from('deleted_students').select('*').is('restored_at',null).order('id',{ascending:false}).limit(200);
+  if(r.error){$('#tb').innerHTML='فشل: '+e(r.error.message);return;}
+  const fmt=x=>new Date(x).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',dateStyle:'medium',timeStyle:'short'});
+  const rows=r.data.map(x=>`<tr><td>${e(fmt(x.deleted_at))}</td><td>${e(x.student.full_name)}</td><td>${e(x.student.group_code)}</td><td>${Object.values(x.records||{}).reduce((a,v)=>a+(v||[]).length,0)}</td><td>${e(x.deleted_by_name||'')}</td><td><button onclick="restoreStu(${x.id})">استرجاع</button></td></tr>`).join('');
+  $('#tb').innerHTML=`<h3>نسخة احتياطية كاملة</h3><p class="muted">تُحمَّل كملف JSON على جهازك ويضم كل الجداول: الطلاب والتقييمات والدرجات والإعدادات والإسناد وسجل المراجعة والمحذوفات. احتفظ بها في مكان آمن.</p><button class="pri" id="bkb" onclick="exportBackup()">تحميل نسخة احتياطية كاملة</button><div class="st" id="bkm" role="status"></div>
+  <h3>سلة المحذوفات</h3><div class="tw"><table><tr><th>وقت الحذف</th><th>الطالب</th><th>المجموعة</th><th>عدد السجلات</th><th>حذفه</th><th></th></tr>${rows||'<tr><td colspan="6">لا توجد عناصر محذوفة</td></tr>'}</table></div>`;
+}
+async function exportBackup(){
+  const b=$('#bkb'), m=$('#bkm'); b.disabled=true; m.className='st';
+  const T={groups:'code',doctors:'user_id',doctor_group_assignments:'id',training_periods:'id',assessment_settings:'key',students:'student_code',clinical_sessions:'id',clinical_assessments:'id',clinical_sheet_scores:'id',lab_sessions:'id',lab_assessments:'id',lab_quizzes:'id',late_approvals:'id',deleted_students:'id',audit_logs:'id'};
+  const out={exported_at:new Date().toISOString(),institute:INST,tables:{}}, ks=Object.keys(T);
   try{
-    for(const t of [...REC,'late_approvals']){ const r=await SB.from(t).delete().in('student_code',codes); if(r.error) throw r.error; }
-    const r=await SB.from('students').delete().in('student_code',codes).select('student_code');
-    if(r.error) throw r.error;
-    const k=r.data.length; S.sel=new Set(); await staffView('stu');
-    flash(k===codes.length?'تم حذف '+k+' طالب':'تم حذف '+k+' من '+codes.length+' فقط - راجع الصلاحيات',k===codes.length?'good':'bad');
-  }catch(er){ flash('فشل الحذف: '+(er.message||er),'bad'); }
+    let i=0; for(const t of ks){ m.textContent='جارٍ التحميل... '+(++i)+' / '+ks.length+' ('+t+')'; out.tables[t]=await all(t,'*',q=>q.order(T[t])); }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:'application/json'})); a.download='backup_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+    m.textContent='تم تحميل النسخة الاحتياطية ('+Object.values(out.tables).reduce((x,v)=>x+v.length,0)+' سجل)'; m.className='st good';
+  }catch(er){ m.textContent='فشل: '+(er.message||er); m.className='st bad'; }
+  b.disabled=false;
+}
+async function restoreStu(id){
+  if(!confirm('استرجاع هذا الطالب مع كل تقييماته؟')) return;
+  const r=await SB.rpc('admin_restore_student',{arch_id:id});
+  if(r.error) return alert('فشل الاسترجاع: '+r.error.message);
+  await staffView('bk'); alert('تم استرجاع الطالب بالكود '+r.data);
 }
 async function addStu(){
   const m=$('#smsg'), g=S.sf.g, name=$('#sname').value.replace(/\s+/g,' ').trim();
