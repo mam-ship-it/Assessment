@@ -116,6 +116,7 @@ table tr:nth-child(even) td{background:#f3f9fb}table tr:hover td{background:#fff
 .credit .cp{font-size:11px;color:#8aa0a7;margin-top:6px}
 main>.credit{padding-bottom:64px}
 @media print{.credit{margin-top:10px}}
+.ck{width:20px!important;height:20px;min-height:auto!important;padding:0!important}.acts{display:flex;gap:.5em;flex-wrap:wrap;align-items:center;margin:.6em 0}.acts .muted{flex:1;min-width:140px}button.dng{background:var(--red);color:#fff;border-color:var(--red);font-weight:600}button:disabled{opacity:.45;cursor:not-allowed}
 </style></head>
 <body>
 <div id="app"></div>
@@ -211,7 +212,7 @@ async function loadSummary(only){
   const {gc}=S.g, t=S.t, lab=t==='lab', p=S.period.id;
   let a=lab?SB.from('v_lab_summary').select('*').eq('group_code',gc).eq('period_id',p):SB.from('v_clinical_summary').select('*').eq('group_code',gc).eq('training_type_code',t).eq('period_id',p);
   let b=lab?SB.from('lab_quizzes').select('*').eq('period_id',p):SB.from('clinical_sheet_scores').select('id,student_code,score,version').eq('training_type_code',t).eq('period_id',p);
-  if(only){a=a.eq('student_code',only);b=b.eq('student_code',only);} else b=b.like('student_code',gc+'-%');
+  if(only){a=a.eq('student_code',only);b=b.eq('student_code',only);} else b=b.in('student_code',S.g.stu.map(x=>x.student_code));
   const [sm,r]=await Promise.all([a,b]);
   if(!only){S.g.sum={};S.g.sheet={};S.g.quiz={};}
   (sm.data||[]).forEach(x=>S.g.sum[x.student_code]=x);
@@ -552,15 +553,84 @@ async function tabAudit(){
 }
 
 function tabStu(){
-  const F=S.sf||(S.sf={g:S.st.grp[0]?.code||''});
+  const F=S.sf||(S.sf={g:S.st.grp[0]?.code||''}), adm=S.me.role==='admin';
   const list=S.st.stu.filter(x=>x.group_code===F.g).sort((a,b)=>a.serial_no-b.serial_no), next=(list.length?Math.max(...list.map(x=>x.serial_no)):0)+1;
   $('#tb').innerHTML=`<h3>إضافة طالب إلى مجموعة</h3><div class="bar2"><div><label for="sg">المجموعة</label><select id="sg">${S.st.grp.map(g=>`<option ${F.g===g.code?'selected':''}>${e(g.code)}</option>`).join('')}</select></div>
   <div><label for="sname">اسم الطالب بالكامل</label><input id="sname"></div></div>
   <button class="pri" onclick="addStu()">إضافة الطالب</button><div class="st" id="smsg" role="status"></div>
   <p class="muted">يأخذ الطالب الرقم التالي في المجموعة (${next}) ويظهر فورًا في قائمة الدكتور المسند إليه.</p>
   <div class="muted">${list.length} طالب في ${e(F.g)}</div>
-  <div class="tw"><table><tr><th>م</th><th>الكود</th><th>الاسم</th></tr>${list.map(x=>`<tr><td>${x.serial_no}</td><td dir="ltr">${e(x.student_code)}</td><td>${e(x.full_name)}</td></tr>`).join('')}</table></div>`;
-  $('#sg').onchange=ev=>{F.g=ev.target.value;tabStu();};
+  ${adm?`<div class="acts"><span class="muted" id="selc"></span><button id="mvb" onclick="moveStu()">نقل المحدد إلى مجموعة أخرى</button><button class="dng" id="delb" onclick="delStu()">حذف المحدد</button></div>`:''}
+  <div class="tw"><table><tr>${adm?'<th><input type="checkbox" class="ck" id="sall" aria-label="تحديد الكل"></th>':''}<th>م</th><th>الكود</th><th>الاسم</th></tr>${list.map(x=>`<tr>${adm?`<td><input type="checkbox" class="ck sc" value="${e(x.student_code)}" aria-label="تحديد ${e(x.full_name)}"></td>`:''}<td>${x.serial_no}</td><td dir="ltr">${e(x.student_code)}</td><td>${e(x.full_name)}</td></tr>`).join('')}</table></div>`;
+  $('#sg').onchange=ev=>{F.g=ev.target.value;S.sel=new Set();tabStu();};
+  if(adm){ const keep=S.sel||new Set(), bx=[...document.querySelectorAll('.sc')]; bx.forEach(c=>{c.checked=keep.has(c.value);c.onchange=updSel;});
+    const sa=$('#sall'); if(sa) sa.onchange=()=>{bx.forEach(c=>c.checked=sa.checked);updSel();}; updSel(); }
+}
+function updSel(){
+  S.sel=new Set([...document.querySelectorAll('.sc:checked')].map(c=>c.value));
+  const n=S.sel.size, tot=document.querySelectorAll('.sc').length, sa=$('#sall'), c=$('#selc');
+  if(c) c.textContent=n?n+' طالب محدد':'حدد طالبًا أو أكثر من الجدول لنقله أو حذفه';
+  ['mvb','delb'].forEach(i=>{const b=$('#'+i); if(b) b.disabled=!n;});
+  if(sa) sa.checked=n>0&&n===tot;
+}
+const REC=['clinical_assessments','lab_assessments','clinical_sheet_scores','lab_quizzes'];
+const sName=c=>(S.st.stu.find(x=>x.student_code===c)||{}).full_name||c;
+const nameList=cs=>cs.slice(0,5).map(sName).join('، ')+(cs.length>5?' ...':'');
+function flash(t,c){const k=$('#smsg'); if(k){k.textContent=t;k.className='st '+(c||'');}}
+async function recCount(codes,tables){
+  const rs=await Promise.all(tables.map(t=>SB.from(t).select('student_code',{count:'exact',head:true}).in('student_code',codes)));
+  const bad=rs.find(r=>r.error); if(bad) throw bad.error;
+  return rs.reduce((a,r)=>a+(r.count||0),0);
+}
+function moveStu(){
+  const codes=[...(S.sel||[])]; if(!codes.length||S.me.role!=='admin') return;
+  const opts=S.st.grp.filter(g=>g.code!==S.sf.g).map(g=>`<option>${e(g.code)}</option>`).join('');
+  $('#mv')?.remove();
+  const d=document.createElement('div'); d.className='modal'; d.id='mv';
+  d.innerHTML=`<div class="sheet" role="dialog" aria-label="نقل طلاب"><h2>نقل ${codes.length} طالب من ${e(S.sf.g)}</h2><div class="muted">${e(nameList(codes))}</div><label for="mvg">المجموعة الجديدة</label><select id="mvg">${opts}</select><p class="muted">يأخذ كل طالب الرقم التالي في المجموعة الجديدة ويظهر فورًا في قائمة الدكتور المسند إليها، ويتغيّر كوده ليطابق المجموعة الجديدة. الطلاب الذين لديهم تقييمات مسجّلة لا يمكن نقلهم وسيُذكرون في الرسالة.</p><div class="st" id="mvm" role="status"></div><div class="bar2"><button class="pri" id="mvgo" onclick="doMove()">تأكيد النقل</button><button onclick="document.getElementById('mv').remove()">إلغاء</button></div></div>`;
+  document.body.appendChild(d);
+}
+async function doMove(){
+  if(S.me.role!=='admin') return;
+  const dest=$('#mvg')?.value, codes=[...(S.sel||[])], m=$('#mvm'), go=$('#mvgo'); let done=0, skipped=[];
+  if(!dest||!codes.length){m.textContent='اختر المجموعة الجديدة';m.className='st bad';return;}
+  go.disabled=true; m.textContent='جارٍ التحقق...'; m.className='st';
+  try{
+    const rs=await Promise.all(REC.map(t=>SB.from(t).select('student_code').in('student_code',codes).limit(5000)));
+    const bad=rs.find(r=>r.error); if(bad) throw bad.error;
+    const have=new Set(); rs.forEach(r=>r.data.forEach(x=>have.add(x.student_code)));
+    skipped=S.st.stu.filter(x=>codes.includes(x.student_code)&&have.has(x.student_code)).map(x=>x.full_name);
+    const order=S.st.stu.filter(x=>codes.includes(x.student_code)&&!have.has(x.student_code)).sort((a,b)=>a.serial_no-b.serial_no);
+    if(!order.length) throw new Error('كل الطلاب المحددين لديهم تقييمات مسجّلة ولا يمكن نقلهم');
+    const r0=await SB.from('students').select('serial_no').eq('group_code',dest).order('serial_no',{ascending:false}).limit(1);
+    if(r0.error) throw r0.error;
+    let next=(r0.data[0]?.serial_no||0)+1;
+    for(const s of order){
+      m.textContent='جارٍ النقل... '+done+' / '+order.length;
+      const r=await SB.from('students').update({group_code:dest,serial_no:next,student_code:dest+'-'+next}).eq('student_code',s.student_code).select('student_code');
+      if(r.error||!r.data.length) throw new Error('فشل نقل "'+s.full_name+'": '+(r.error?r.error.message:'لا توجد صلاحية'));
+      next++; done++;
+    }
+    $('#mv')?.remove(); S.sel=new Set(); await staffView('stu'); flash('تم نقل '+done+' طالب إلى المجموعة '+dest+(skipped.length?' - لم يُنقل لوجود تقييمات مسجّلة: '+skipped.join('، '):''),skipped.length?'bad':'good');
+  }catch(er){
+    const t='فشل: '+(er.message||er)+(done?' (تم نقل '+done+' قبل الفشل)':'');
+    if(done){ $('#mv')?.remove(); S.sel=new Set(); await staffView('stu'); flash(t,'bad'); }
+    else{ const mm=$('#mvm'); if(mm){mm.textContent=t;mm.className='st bad';} const g=$('#mvgo'); if(g) g.disabled=false; }
+  }
+}
+async function delStu(){
+  const codes=[...(S.sel||[])]; if(!codes.length||S.me.role!=='admin') return;
+  let n; try{ n=(await recCount(codes,REC))+(await recCount(codes,['late_approvals'])); }catch(er){return flash('فشل: '+(er.message||er),'bad');}
+  if(!confirm('حذف '+codes.length+' طالب نهائيًا من النظام؟\n'+nameList(codes)+(n?'\n\nسيُحذف معهم أيضًا '+n+' سجل (تقييمات ودرجات) ولا يمكن التراجع.':''))) return;
+  if(n){ const w=prompt('لتأكيد حذف الطلاب مع سجلاتهم اكتب كلمة: حذف'); if((w||'').trim()!=='حذف') return flash('أُلغي الحذف','bad'); }
+  flash('جارٍ الحذف...');
+  try{
+    for(const t of [...REC,'late_approvals']){ const r=await SB.from(t).delete().in('student_code',codes); if(r.error) throw r.error; }
+    const r=await SB.from('students').delete().in('student_code',codes).select('student_code');
+    if(r.error) throw r.error;
+    const k=r.data.length; S.sel=new Set(); await staffView('stu');
+    flash(k===codes.length?'تم حذف '+k+' طالب':'تم حذف '+k+' من '+codes.length+' فقط - راجع الصلاحيات',k===codes.length?'good':'bad');
+  }catch(er){ flash('فشل الحذف: '+(er.message||er),'bad'); }
 }
 async function addStu(){
   const m=$('#smsg'), g=S.sf.g, name=$('#sname').value.replace(/\s+/g,' ').trim();
@@ -569,8 +639,9 @@ async function addStu(){
   const list=S.st.stu.filter(x=>x.group_code===g);
   if(list.some(x=>x.full_name.replace(/\s+/g,' ').trim()===name) && !confirm('يوجد طالب بنفس الاسم في هذه المجموعة. هل تريد الإضافة رغم ذلك؟')) return;
   const serial=(list.length?Math.max(...list.map(x=>x.serial_no)):0)+1;
+  const used=new Set(S.st.stu.map(x=>x.student_code)); let code=g+'-'+serial, k0=1; while(used.has(code)) code=g+'-'+serial+'-m'+(k0++);
   m.textContent='جارٍ الحفظ...'; m.className='st';
-  const r=await SB.from('students').insert({student_code:g+'-'+serial,group_code:g,serial_no:serial,full_name:name}).select().single();
+  const r=await SB.from('students').insert({student_code:code,group_code:g,serial_no:serial,full_name:name}).select().single();
   if(r.error) return bad('فشل: '+r.error.message);
   await staffView('stu'); const k=$('#smsg'); if(k){k.textContent='تمت إضافة '+name+' برقم '+serial; k.className='st good';}
 }
@@ -811,7 +882,7 @@ async function overlay(){
   try{
     if(!S.g||!S.me) return; const lab=S.t==='lab', gc=S.g.gc;
     for(const o of (await opsAll()).filter(x=>x.uid===S.me.user_id&&x.status!=='conflict')){
-      const r=o.row, code=r.student_code; if(!code||!code.startsWith(gc+'-')) continue;
+      const r=o.row, code=r.student_code; if(!code||!S.g.stu.some(x=>x.student_code===code)) continue;
       const mk=old=>({...(old||{}),...r,_pending:true});
       if(o.table==='clinical_assessments'||o.table==='lab_assessments'){
         const sr=o.sessRow, hit=sr?(sr.group_code===gc&&sr.session_no===S.sn&&(lab||sr.training_type_code===S.t)):(S.g.sess&&r.session_id===S.g.sess.id);
