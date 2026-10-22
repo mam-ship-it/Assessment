@@ -711,7 +711,7 @@ async function exportTemplate(){
       for(const k in h3){ws.getCell(k).value=h3[k];}
       h4.forEach((t,i)=>{const x=ws.getCell(4,i+2);x.value=t;x.alignment={...ctr,textRotation:90};});
       ['A3','P3','Q3'].forEach(k=>ws.getCell(k).fill=fill);
-      if(LOGOPNG){const id=wb.addImage({base64:LOGOPNG,extension:'png'});ws.addImage(id,{tl:{col:0.1,row:0.1},ext:{width:56,height:56}});}
+      if(LOGOPNG){const id=wb.addImage({base64:LOGOPNG,extension:'png'});ws.addImage(id,{tl:{col:0,row:0},ext:{width:56,height:56}});}
       ws.getRow(1).height=44; ws.getRow(2).height=24; ws.getRow(3).height=20; ws.getRow(4).height=92;
       const ss=stu.filter(s=>s.group_code===code).sort((a,b)=>a.serial_no-b.serial_no);
       ss.forEach((s,i)=>{
