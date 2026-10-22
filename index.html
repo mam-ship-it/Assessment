@@ -407,10 +407,10 @@ function showTab(k){ S.tab=k; if(S.st&&Date.now()-S.st.at<120000) drawStaff(); e
 function drawStaff(){
   const {grp,docs,asg,cl,lb,n}=S.st, tab=S.tab, adm=S.me.role==='admin';
   const inc=TYPES.reduce((a,t)=>a+rowsFor(t).filter(x=>!isDone(x)).length,0);
-  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
+  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['imp','استيراد الدرجات'],['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
   const kpi=`<div class="grid"><div class="card"><div class="muted">الطلاب</div><div class="big">${n}</div></div><div class="card"><div class="muted">المجموعات</div><div class="big">${grp.length}</div></div><div class="card"><div class="muted">الدكاترة</div><div class="big">${docs.filter(d=>d.role==='doctor').length}</div></div><div class="card"><div class="muted">تقييمات غير مكتملة</div><div class="big">${inc}</div></div></div>`;
   app.innerHTML=shell(`<h2>لوحة ${adm?'مدير النظام':'المنسق'}</h2>${kpi}<div class="seg" style="margin:.8em 0">${tabs}</div><div id="tb"></div>`,e(S.period?.name||''));
-  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,docs:tabDocs,audit:tabAudit,bk:tabBk})[tab]();
+  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab]();
 }
 function tabSum(){
   const r=TYPES.map(t=>{const x=rowsFor(t),d=x.filter(isDone).length,a=x.filter(y=>y.absent_all).length;
@@ -633,6 +633,114 @@ async function delStu(){
   const r=await SB.rpc('admin_delete_students',{codes});
   if(r.error) return flash('فشل الحذف: '+r.error.message,'bad');
   S.sel=new Set(); await staffView('stu'); flash('تم حذف '+r.data+' طالب. يمكن استرجاعهم من تبويب النسخ الاحتياطي','good');
+}
+/* ---------- import sheet scores from Excel ---------- */
+const IT=['antenatal','labor','postnatal'];
+const nz=s=>String(s??'').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[إأآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[^\p{L}\p{N}\s]/gu,' ').replace(/\s+/g,' ').trim().toLowerCase();
+const tokKey=s=>nz(s).split(' ').sort().join(' ');
+const gNorm=s=>String(s??'').toUpperCase().replace(/\s+/g,'');
+const colL=i=>{let t='';i++;while(i>0){t=String.fromCharCode(65+(i-1)%26)+t;i=Math.floor((i-1)/26);}return t;};
+function impNum(v){
+  if(v==null||v==='') return null; if(typeof v==='number') return v;
+  const t=String(v).trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[٫,]/g,'.'); if(!t) return null;
+  if(/^غ/.test(t)) return 'abs'; const n=Number(t); return isNaN(n)?NaN:n;
+}
+function impGuess(row){
+  const h=(row||[]).map(nz), f=fn=>h.findIndex(fn), isA=t=>/ante|قبل/.test(t), isP=t=>/post|بعد|نفاس/.test(t);
+  return {cName:f(t=>/اسم|name/.test(t)),cGroup:f(t=>/مجموعه|group/.test(t)),antenatal:f(isA),postnatal:f(isP),labor:f(t=>/labou?r|طلق|مخاض|ولاد/.test(t)&&!isA(t)&&!isP(t))};
+}
+function impSetMap(row){ const o=S.imp, g=impGuess(row); o.map={cName:g.cName,cGroup:g.cGroup>=0?g.cGroup:(o.sel==='__all__'?'__sheet__':-1),antenatal:g.antenatal,labor:g.labor,postnatal:g.postnatal}; }
+function impGuessAll(){
+  const o=S.imp, rows=o.sheets[o.sel==='__all__'?o.names[0]:o.sel]; o.hr=0;
+  for(let i=0;i<Math.min(15,rows.length);i++){ const g=impGuess(rows[i]); if(g.cName>=0&&(g.antenatal>=0||g.labor>=0||g.postnatal>=0)){o.hr=i;break;} }
+  impSetMap(rows[o.hr]);
+}
+function tabImp(){
+  if(S.me.role!=='admin'){$('#tb').innerHTML='';return;}
+  S.imp=null;
+  $('#tb').innerHTML=`<h3>استيراد درجات الشيتات من Excel</h3><p class="muted">ارفع ملف Excel يحتوي أسماء الطلاب ودرجات الشيت (من ${num('clinical.sheet_max')}). يطابق النظام الأسماء تلقائيًا ويعرض معاينة كاملة قبل أي حفظ. تُسجَّل الدرجات في الفترة المفتوحة: ${e(S.period?.name||'لا توجد فترة مفتوحة')}.</p><input type="file" id="ifile" accept=".xlsx,.xls,.csv"><div class="st" id="imsg" role="status"></div><div id="iopts"></div><div id="iprev"></div>`;
+  $('#ifile').onchange=impLoad;
+}
+async function impLoad(ev){
+  const f=ev.target.files[0]; if(!f) return; const m=$('#imsg'); m.className='st'; m.textContent='جارٍ قراءة الملف...'; $('#iprev').innerHTML='';
+  try{
+    if(!S.period) throw new Error('لا توجد فترة تدريبية مفتوحة');
+    if(!window.XLSX) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}), sheets={};
+    wb.SheetNames.forEach(n=>sheets[n]=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:'',raw:true}));
+    const names=wb.SheetNames.filter(n=>sheets[n].length); if(!names.length) throw new Error('الملف فارغ');
+    const grpSheets=names.length>1&&names.every(n=>S.st.grp.some(g=>gNorm(g.code)===gNorm(n)));
+    S.imp={sheets,names,sel:grpSheets?'__all__':names[0],items:null}; impGuessAll();
+    m.textContent='تمت قراءة الملف ('+names.length+' شيت). راجع تحديد الأعمدة ثم اضغط معاينة.'; impOpts();
+  }catch(er){ m.textContent='تعذّرت قراءة الملف: '+(er.message||er); m.className='st bad'; }
+}
+function impOpts(){
+  const o=S.imp, rows=o.sheets[o.sel==='__all__'?o.names[0]:o.sel], w=Math.max(1,...rows.slice(0,30).map(r=>r.length));
+  const lab=i=>colL(i)+': '+([o.hr-1,o.hr].map(k=>k>=0?String(rows[k]?.[i]??'').trim():'').filter(Boolean).join(' / ')||'(فارغ)');
+  const mk=(k,extra)=>`<select id="im_${k}">${extra||''}<option value="-1" ${o.map[k]===-1?'selected':''}>— لا شيء —</option>${Array.from({length:w},(_,i)=>`<option value="${i}" ${o.map[k]===i?'selected':''}>${e(lab(i))}</option>`).join('')}</select>`;
+  const gx=`<option value="__sheet__" ${o.map.cGroup==='__sheet__'?'selected':''}>اسم الشيت (كل شيت = مجموعة)</option>`;
+  $('#iopts').innerHTML=`<div class="bar2"><div><label for="isheet">الشيت</label><select id="isheet">${o.names.length>1?`<option value="__all__" ${o.sel==='__all__'?'selected':''}>كل الشيتات (اسم الشيت = كود المجموعة)</option>`:''}${o.names.map(n=>`<option ${o.sel===n?'selected':''}>${e(n)}</option>`).join('')}</select></div><div><label for="ihr">رقم صف العناوين</label><input id="ihr" type="number" min="1" value="${o.hr+1}"></div></div>
+  <div class="bar2"><div><label>عمود الاسم</label>${mk('cName')}</div><div><label>عمود المجموعة (اختياري)</label>${mk('cGroup',gx)}</div></div>
+  <div class="bar2"><div><label>درجة Antenatal</label>${mk('antenatal')}</div><div><label>درجة Labor</label>${mk('labor')}</div><div><label>درجة Postnatal</label>${mk('postnatal')}</div></div>
+  <button class="pri" id="iprevb">معاينة قبل الحفظ</button>`;
+  $('#isheet').onchange=ev=>{o.sel=ev.target.value;o.items=null;impGuessAll();impOpts();$('#iprev').innerHTML='';};
+  $('#ihr').onchange=ev=>{o.hr=Math.max(0,(+ev.target.value||1)-1);impSetMap(rows[o.hr]);impOpts();};
+  ['cName','cGroup','antenatal','labor','postnatal'].forEach(k=>$('#im_'+k).onchange=ev=>{const v=ev.target.value;o.map[k]=v==='__sheet__'?v:+v;});
+  $('#iprevb').onclick=impPreview;
+}
+async function impPreview(){
+  const o=S.imp, m=$('#imsg'), mp=o.map, max=num('clinical.sheet_max');
+  if(!(mp.cName>=0)){m.textContent='اختر عمود الاسم';m.className='st bad';return;}
+  if(!IT.some(t=>mp[t]>=0)){m.textContent='اختر عمود درجات واحدًا على الأقل';m.className='st bad';return;}
+  m.textContent='جارٍ المطابقة...'; m.className='st';
+  let ex; try{ ex=await all('clinical_sheet_scores','id,student_code,training_type_code,score,version',q=>q.eq('period_id',S.period.id).order('id')); }catch(er){m.textContent='فشل: '+(er.message||er);m.className='st bad';return;}
+  const exMap=Object.fromEntries(ex.map(x=>[x.student_code+'|'+x.training_type_code,x]));
+  const gset=new Map(S.st.grp.map(g=>[gNorm(g.code),g.code])), idxN=new Map(), idxT=new Map(), nn=new Map();
+  S.st.stu.forEach(x=>{const n=nz(x.full_name),t=tokKey(x.full_name); nn.set(x.student_code,n); (idxN.get(n)||idxN.set(n,[]).get(n)).push(x); (idxT.get(t)||idxT.set(t,[]).get(t)).push(x);});
+  const find=(name,gc)=>{ const k=nz(name), inG=a=>gc?a.filter(x=>x.group_code===gc):a; let r=inG(idxN.get(k)||[]), part=false;
+    if(!r.length) r=inG(idxT.get(tokKey(name))||[]);
+    if(!r.length&&gc&&k.split(' ').length>=3){ r=S.st.stu.filter(x=>x.group_code===gc&&(nn.get(x.student_code).startsWith(k+' ')||k.startsWith(nn.get(x.student_code)+' '))); part=r.length>0; }
+    return {r,part}; };
+  const items=[], seen=new Map();
+  for(const sh of (o.sel==='__all__'?o.names:[o.sel])){
+    for(const row of o.sheets[sh].slice(o.hr+1)){
+      const name=String(row[mp.cName]??'').trim(); if(!name) continue;
+      const gr=mp.cGroup==='__sheet__'?sh:(mp.cGroup>=0?String(row[mp.cGroup]??'').trim():'');
+      const gc=gr?gset.get(gNorm(gr)):'';
+      for(const t of IT){ if(!(mp[t]>=0)) continue; const raw=row[mp[t]], v=impNum(raw); if(v===null) continue;
+        const it={sh,name,gr,t,raw,v,st:'',stu:null,ex:null,part:false};
+        if(v==='abs') it.st='abs'; else if(isNaN(v)||v<0||v>max) it.st='bad';
+        else if(gr&&!gc) it.st='grp';
+        else { const f=find(name,gc); if(!f.r.length) it.st='none'; else if(f.r.length>1) it.st='amb';
+          else { it.stu=f.r[0]; it.part=f.part; it.ex=exMap[it.stu.student_code+'|'+t]||null; it.st=!it.ex?'new':(Number(it.ex.score)===v?'same':'upd');
+            const key=it.stu.student_code+'|'+t; if(seen.has(key)) seen.get(key).st='dup'; seen.set(key,it); } }
+        items.push(it); } } }
+  o.items=items; impShow();
+  m.textContent=items.length?'':'لم يُعثر على أي درجات في الأعمدة المحددة'; m.className=items.length?'st':'st bad';
+}
+const IST={new:'جديد',upd:'تعديل',same:'بدون تغيير',none:'غير موجود',amb:'اسم مكرر',grp:'مجموعة غير معروفة',bad:'قيمة غير صالحة',abs:'غائب - تجاهل',dup:'مكرر في الملف'};
+function impShow(){
+  const o=S.imp, it=o.items, c={}; it.forEach(x=>c[x.st]=(c[x.st]||0)+1);
+  const rank={none:0,amb:0,grp:0,bad:0,dup:1,abs:2,upd:3,new:4,same:5}, todo=(c.new||0)+(c.upd||0);
+  const cls=k=>['new','upd'].includes(k)?'c':['none','amb','grp','bad'].includes(k)?'a':'';
+  const sorted=[...it].sort((a,b)=>rank[a.st]-rank[b.st]);
+  $('#iprev').innerHTML=`<hr><div style="margin:.4em 0">${Object.keys(IST).filter(k=>c[k]).map(k=>`<span class="chip ${cls(k)}">${IST[k]}: ${c[k]}</span>`).join(' ')}</div>
+  ${todo?`<button class="pri" onclick="impApply()">اعتماد وحفظ ${todo} درجة (${c.new||0} جديدة، ${c.upd||0} تعديل)</button>`:'<div class="muted">لا توجد درجات جديدة أو معدّلة للحفظ</div>'}
+  <div class="muted" style="margin-top:.6em">تظهر الحالات التي تحتاج مراجعتك أولًا. المطابقات الجزئية للاسم تحمل علامة ~ فراجعها قبل الاعتماد.</div>
+  <div class="tw"><table><thead><tr><th>الحالة</th><th>الشيت</th><th>الاسم في الملف</th><th>الطالب المطابق</th><th>النوع</th><th>القديمة</th><th>الجديدة</th></tr></thead><tbody>${sorted.slice(0,400).map(x=>`<tr><td><span class="chip ${cls(x.st)}">${IST[x.st]}</span></td><td>${e(x.sh)}</td><td>${e(x.name)}</td><td>${x.stu?(x.part?'~ ':'')+e(x.stu.full_name)+' <span class="muted" dir="ltr">'+e(x.stu.student_code)+'</span>':'-'}</td><td>${TN[x.t]}</td><td>${x.ex?e(x.ex.score):'-'}</td><td>${e(x.raw)}</td></tr>`).join('')}</tbody></table></div>${sorted.length>400?'<div class="muted">يعرض أول 400 سطر فقط</div>':''}`;
+}
+async function impApply(){
+  const o=S.imp, todo=o.items.filter(x=>x.st==='new'||x.st==='upd'), m=$('#imsg'); if(!todo.length) return;
+  if(!confirm('حفظ '+todo.length+' درجة شيت في الفترة '+S.period.name+'؟ الدرجات المعدّلة تُستبدل بالقيم الجديدة وتُسجَّل في سجل المراجعة.')) return;
+  let i=0, done=0; const errs=[]; m.className='st';
+  const worker=async()=>{ while(i<todo.length){ const x=todo[i++];
+    const r=x.ex?await withTO(SB.from('clinical_sheet_scores').update({score:x.v}).eq('id',x.ex.id).eq('version',x.ex.version).select('id'))
+                :await withTO(SB.from('clinical_sheet_scores').insert({student_code:x.stu.student_code,training_type_code:x.t,period_id:S.period.id,score:x.v}).select('id'));
+    if(r.error) errs.push([x,r.error.message==='timeout'?'انتهت المهلة':tr(r.error.message)]); else if(x.ex&&!r.data.length) errs.push([x,'تغيّر السجل أثناء الاستيراد']); else done++;
+    m.textContent='جارٍ الحفظ... '+(done+errs.length)+' / '+todo.length; } };
+  await Promise.all(Array.from({length:6},worker));
+  m.textContent='تم حفظ '+done+' درجة'+(errs.length?' - وفشل '+errs.length:''); m.className='st '+(errs.length?'bad':'good');
+  $('#iprev').innerHTML=(errs.length?`<h3>درجات لم تُحفظ</h3><div class="tw"><table><tr><th>الطالب</th><th>النوع</th><th>الدرجة</th><th>السبب</th></tr>${errs.map(([x,t])=>`<tr><td>${e(x.stu.full_name)}</td><td>${TN[x.t]}</td><td>${e(x.v)}</td><td>${e(t)}</td></tr>`).join('')}</table></div>`:'')+'<div style="margin-top:.8em"><button onclick="impPreview()">إعادة المعاينة</button></div>';
 }
 async function tabBk(){
   if(S.me.role!=='admin'){$('#tb').innerHTML='';return;}
