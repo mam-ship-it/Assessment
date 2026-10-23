@@ -132,6 +132,7 @@ main:has(.dash){max-width:1280px}
 @keyframes sl{from{opacity:0;transform:translateX(-18px)}}
 .toastl{position:fixed;bottom:18px;inset-inline:0;margin:auto;width:max-content;max-width:90vw;background:var(--ink);color:#fff;padding:.55em 1.2em;border-radius:30px;opacity:0;transform:translateY(20px);transition:.4s;z-index:60;pointer-events:none}
 .toastl.show{opacity:1;transform:none}
+.dsg{gap:.3em;margin:.2em 0 .7em}.dsg button{min-height:34px;padding:.2em .4em;font-size:.82em}
 @media(prefers-reduced-motion:reduce){.dv,.bf,.sg,.flash,.live i,.feed li.new{animation:none!important;transition:none!important}}
 </style>
 <style>.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.9em}th,td{border:1px solid #ccd;padding:.4em .6em;text-align:right;white-space:nowrap}th{background:#e8f0f2;position:sticky;top:0}
@@ -474,8 +475,9 @@ function tabSum(){
   const bg={}; st.grp.forEach(g=>bg[g.code]=[0,0]);
   TYPES.forEach(t=>rowsFor(t).forEach(x=>{const o=bg[x.group_code]||(bg[x.group_code]=[0,0]);o[1]++;if(isDone(x))o[0]++;}));
   const gl=Object.entries(bg).filter(([,v])=>v[1]).map(([k,v])=>({k,d:v[0],n:v[1],p:Math.round(v[0]/v[1]*100)})).sort((a,b)=>a.p-b.p||nat(a.k,b.k));
-  const tot=st.cl.filter(x=>x.total_20!=null&&x.total_20!==''&&!x.absent_all).map(x=>+x.total_20).filter(v=>!isNaN(v));
-  const bk=[['أقل من 10',v=>v<10,'#e2231a'],['10 – أقل من 15',v=>v>=10&&v<15,'#e8a900'],['15 – أقل من 18',v=>v>=15&&v<18,'#12a5b5'],['18 فأعلى',v=>v>=18,'#2f9e44']].map(([l,f,c])=>({l,c,n:tot.filter(f).length}));
+  const smx=num('clinical.sheet_max')||15, f1=n=>Number(n.toFixed(1)), c1=f1(smx*.5), c2=f1(smx*.7), c3=f1(smx*.9);
+  const dd=S.dd||'all', tot=st.cl.filter(x=>(dd==='all'||x.training_type_code===dd)&&x.sheet_score_15!=null&&x.sheet_score_15!==''&&!x.absent_all).map(x=>+x.sheet_score_15).filter(v=>!isNaN(v));
+  const bk=[[`أقل من ${c1}`,v=>v<c1,'#e2231a'],[`${c1} – أقل من ${c2}`,v=>v>=c1&&v<c2,'#e8a900'],[`${c2} – أقل من ${c3}`,v=>v>=c2&&v<c3,'#12a5b5'],[`${c3} فأعلى`,v=>v>=c3,'#2f9e44']].map(([l,f,c])=>({l,c,n:tot.filter(f).length}));
   const bm=Math.max(1,...bk.map(x=>x.n));
   const bar=(k,l,v,n,txt,c)=>`<div class="gb"><b>${e(l)}</b><div class="gbar"><i class="bf" data-v="${v}" style="width:${pvg(k)}%${c?';background:'+c:''}"></i></div><span><span data-k="${k}" data-n="${n}">${n}</span>${txt}</span></div>`;
   $('#tb').innerHTML=`<div class="dhd"><h3 style="margin:0">لوحة المتابعة المباشرة</h3><span class="live${S.rtOk?'':' off'}"><i></i><em>${S.rtOk?'مباشر':'تحديث دوري'}</em></span><span class="muted">آخر تحديث: ${new Date().toLocaleTimeString('ar-EG')}</span></div>
@@ -484,7 +486,7 @@ function tabSum(){
     <div class="lgd"><span><i style="background:#2f9e44"></i>مكتمل ${td-ta}</span><span><i style="background:#e8a900"></i>غائب كل الجلسات ${ta}</span><span><i style="background:#e2231a"></i>غير مكتمل ${tn-td}</span></div></div>
    ${mx.map(x=>`<div class="dc"><h3>${TN[x.t]}</h3><div class="rg">${ring('t:'+x.t,x.p,DCOL[x.t],104)}<div><div class="big2"><span data-k="td:${x.t}" data-n="${x.d}">${x.d}</span>/${x.n}</div><div class="muted">مكتمل</div><div class="muted">غـ: ${x.a}</div></div></div></div>`).join('')}
    <div class="dc w2"><h3>اكتمال المجموعات (الأقل إنجازًا أولًا)</h3><div class="gscroll">${gl.map(g=>bar('g:'+g.k,g.k,g.p,g.p,'%')+'').join('')||'<div class="muted">لا توجد بيانات</div>'}</div></div>
-   <div class="dc"><h3>توزيع درجات الشيتات (من 20)</h3>${bk.map((b,i)=>bar('d:'+i,b.l,Math.round(b.n/bm*100),b.n,' طالب',b.c)).join('')}<div class="muted">${tot.length} سجل مكتمل الدرجات</div></div>
+   <div class="dc"><h3>توزيع درجات الشيتات (من ${smx})</h3><div class="seg dsg">${[['all','الكل'],['antenatal','Antenatal'],['labor','Labor'],['postnatal','Postnatal']].map(([k,l])=>`<button class="${dd===k?'on':''}" onclick="S.dd='${k}';tabSum()">${l}</button>`).join('')}</div>${bk.map((b,i)=>bar('d:'+i,b.l,Math.round(b.n/bm*100),b.n,' طالب',b.c)).join('')}<div class="muted">${tot.length} سجل له درجة شيت</div></div>
    <div class="dc"><h3>آخر النشاطات</h3><ul class="feed" id="feed"><li class="muted">جارٍ التحميل...</li></ul></div>
   </div>`;
   requestAnimationFrame(()=>requestAnimationFrame(()=>dashGo($('#tb'))));
