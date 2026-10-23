@@ -904,30 +904,43 @@ async function tabAbs(){
   }catch(er){$('#tb').innerHTML='فشل: '+e(er.message);return;}
   const sm=Object.fromEntries(S.st.stu.map(x=>[x.student_code,x])), dn=Object.fromEntries(S.st.docs.map(d=>[d.user_id,d.full_name]));
   const cm=Object.fromEntries(cs.map(x=>[x.id,x])), lm=Object.fromEntries(ls.map(x=>[x.id,x])), rows=[];
-  const add=(s,a,t,mk)=>{if(!s)return;const st=sm[a.student_code]||{};rows.push({g:s.group_code,t,sn:s.session_no,wk:s.week_no,d:s.session_date||(s.created_at||'').slice(0,10),doc:dn[s.doctor_id]||'',ser:st.serial_no||0,name:st.full_name||a.student_code,mk,md:a.makeup_date||'',sk:!!a.sick_excuse});};
+  const add=(s,a,t,mk)=>{if(!s)return;const st=sm[a.student_code]||{};rows.push({sc:a.student_code,g:s.group_code,t,sn:s.session_no,wk:s.week_no,d:s.session_date||(s.created_at||'').slice(0,10),doc:dn[s.doctor_id]||'',ser:st.serial_no||0,name:st.full_name||a.student_code,mk,md:a.makeup_date||'',sk:!!a.sick_excuse});};
   ca.forEach(a=>add(cm[a.session_id],a,cs.find(x=>x.id===a.session_id)?.training_type_code,a.makeup_done));
   la.forEach(a=>add(lm[a.session_id],a,'lab',null));
   const ti=t=>TYPES.indexOf(t);
   rows.sort((a,b)=>nat(a.g,b.g)||ti(a.t)-ti(b.t)||a.sn-b.sn||a.ser-b.ser);
   S.abs={rows,F:S.abs?.F||{g:'',t:''}}; drawAbs();
 }
+/* ---- تنبيهات الغياب: 2 = إنذار أول ، 3 = إنذار ثان ، 4 فأكثر = حرمان ---- */
+function absLevel(n){return n>=4?{k:3,l:'حرمان',c:'#fff',bg:'#b3362f'}:n===3?{k:2,l:'إنذار ثانٍ',c:'#b3362f',bg:'#f8e0de'}:n===2?{k:1,l:'إنذار أول',c:'#8a5a00',bg:'#fff1cc'}:null;}
+function absWarns(){
+  const {rows,F}=S.abs, cnt={};
+  rows.forEach(r=>{(cnt[r.sc]||(cnt[r.sc]={sc:r.sc,g:r.g,ser:r.ser,name:r.name,n:0})).n++;});
+  return Object.values(cnt).map(x=>({...x,lv:absLevel(x.n)})).filter(x=>x.lv&&(!F.g||x.g===F.g)).sort((a,b)=>b.n-a.n||nat(a.g,b.g)||a.ser-b.ser);
+}
+const lvChip=lv=>`<span class="chip" style="background:${lv.bg};color:${lv.c};font-weight:700">${lv.l}</span>`;
 function absFiltered(){const {rows,F}=S.abs;return rows.filter(r=>(!F.g||r.g===F.g)&&(!F.t||r.t===F.t));}
 function drawAbs(){
   const {F}=S.abs, rows=absFiltered(), cnt={};
   rows.forEach(r=>cnt[r.g]=(cnt[r.g]||0)+1);
   const sum=Object.keys(cnt).sort(nat).map(g=>`<span class="chip">${e(g)}: ${cnt[g]}</span>`).join(' ')||'<span class="muted">لا يوجد غياب مسجّل</span>';
+  const W=absWarns(), wc=k=>W.filter(x=>x.lv.k===k).length;
+  const warnHtml=W.length?`<div class="sum" style="margin:.6em 0;padding:.7em"><b>تنبيهات الغياب</b> <span class="muted">(إجمالي كل الجلسات)</span><div style="margin:.4em 0;display:flex;gap:.5em;flex-wrap:wrap">${lvChip(absLevel(2))} ${wc(1)} &nbsp; ${lvChip(absLevel(3))} ${wc(2)} &nbsp; ${lvChip(absLevel(4))} ${wc(3)}</div>
+  <div class="tw"><table><thead><tr><th>م</th><th>الطالب</th><th>المجموعة</th><th>عدد مرات الغياب</th><th>الحالة</th></tr></thead><tbody>${W.map(x=>`<tr><td>${x.ser}</td><td>${e(x.name)}</td><td>${e(x.g)}</td><td>${x.n}</td><td>${lvChip(x.lv)}</td></tr>`).join('')}</tbody></table></div></div>`:'<div class="muted" style="margin:.6em 0">لا توجد تنبيهات غياب (لا يوجد طالب غاب مرتين أو أكثر)</div>';
   $('#tb').innerHTML=`<div class="bar2"><div><label for="ag2">المجموعة</label><select id="ag2"><option value="">الكل</option>${S.st.grp.map(g=>`<option ${F.g===g.code?'selected':''}>${e(g.code)}</option>`).join('')}</select></div>
   <div><label for="at3">النوع</label><select id="at3"><option value="">الكل</option>${TYPES.map(t=>`<option value="${t}" ${F.t===t?'selected':''}>${TN[t]}</option>`).join('')}</select></div></div>
-  <div style="margin:.6em 0;display:flex;gap:.5em"><button class="pri" onclick="exportAbs()">تصدير Excel</button><button onclick="window.print()">طباعة / PDF</button></div>
+  ${warnHtml}<div style="margin:.6em 0;display:flex;gap:.5em"><button class="pri" onclick="exportAbs()">تصدير Excel</button><button onclick="window.print()">طباعة / PDF</button></div>
   <div class="muted">إجمالي حالات الغياب: ${rows.length}</div><div style="margin:.4em 0">${sum}</div>
-  <div class="tw"><table><thead><tr><th>المجموعة</th><th>النوع</th><th>الجلسة</th><th>الأسبوع</th><th>التاريخ</th><th>الدكتور</th><th>م</th><th>الطالب</th><th>التعويض</th></tr></thead><tbody>${rows.slice(0,800).map(r=>`<tr><td>${e(r.g)}</td><td>${TN[r.t]||''}</td><td>${r.sn}</td><td>${r.wk}</td><td dir="ltr">${e(r.d)}</td><td>${e(r.doc)}</td><td>${r.ser}</td><td>${e(r.name)}</td><td>${r.mk===null?'-':r.mk?'عوّض'+(r.sk?' (مرضي)':'')+(r.md?' '+r.md:''):'لم يعوّض'}</td></tr>`).join('')}</tbody></table></div>`;
+  <div class="tw"><table><thead><tr><th>م</th><th>الطالب</th><th>المجموعة</th><th>النوع</th><th>الجلسة</th><th>الأسبوع</th><th>التاريخ</th><th>الدكتور</th><th>التعويض</th></tr></thead><tbody>${rows.slice(0,800).map(r=>`<tr><td>${r.ser}</td><td>${e(r.name)}</td><td>${e(r.g)}</td><td>${TN[r.t]||''}</td><td>${r.sn}</td><td>${r.wk}</td><td dir="ltr">${e(r.d)}</td><td>${e(r.doc)}</td><td>${r.mk===null?'-':r.mk?'عوّض'+(r.sk?' (مرضي)':'')+(r.md?' '+r.md:''):'لم يعوّض'}</td></tr>`).join('')}</tbody></table></div>`;
   $('#ag2').onchange=ev=>{S.abs.F.g=ev.target.value;drawAbs();}; $('#at3').onchange=ev=>{S.abs.F.t=ev.target.value;drawAbs();};
 }
 async function exportAbs(){
   if(!window.XLSX) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-  const rows=absFiltered(), aoa=[['المجموعة','النوع','الجلسة','الأسبوع','التاريخ','الدكتور','م','الطالب','التعويض'],...rows.map(r=>[r.g,TN[r.t]||'',r.sn,r.wk,r.d,r.doc,r.ser,r.name,r.mk===null?'-':r.mk?'عوّض'+(r.sk?' (مرضي)':'')+(r.md?' '+r.md:''):'لم يعوّض'])];
-  const ws=XLSX.utils.aoa_to_sheet(aoa),wb=XLSX.utils.book_new(); ws['!cols']=[10,12,8,8,12,24,6,34,12].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb,ws,'الغياب'); wb.Workbook={Views:[{RTL:true}]};
+  const rows=absFiltered(), aoa=[['م','الطالب','المجموعة','النوع','الجلسة','الأسبوع','التاريخ','الدكتور','التعويض'],...rows.map(r=>[r.ser,r.name,r.g,TN[r.t]||'',r.sn,r.wk,r.d,r.doc,r.mk===null?'-':r.mk?'عوّض'+(r.sk?' (مرضي)':'')+(r.md?' '+r.md:''):'لم يعوّض'])];
+  const ws=XLSX.utils.aoa_to_sheet(aoa),wb=XLSX.utils.book_new(); ws['!cols']=[6,34,10,12,8,8,12,24,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'الغياب');
+  const W=absWarns(), ws2=XLSX.utils.aoa_to_sheet([['م','الطالب','المجموعة','عدد مرات الغياب','الحالة'],...W.map(x=>[x.ser,x.name,x.g,x.n,x.lv.l])]); ws2['!cols']=[6,34,10,16,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws2,'التنبيهات'); wb.Workbook={Views:[{RTL:true},{RTL:true}]};
   XLSX.writeFile(wb,`absence_${S.abs.F.g||'all'}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
