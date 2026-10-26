@@ -107,6 +107,11 @@ table tr:nth-child(even) td{background:#f3f9fb}table tr:hover td{background:#fff
 
 /* ===== live admin dashboard ===== */
 main:has(.dash){max-width:1280px}
+.tdy{position:relative;margin:1em 0 1.2em;padding:1em 1.2em;border-radius:18px;background:linear-gradient(135deg,#fffdf2,#ecf9f6);border:1.5px solid #f0c640;box-shadow:0 0 0 3px #ffd54a55,0 0 22px 4px #ffd54a88,0 0 52px 12px #12a5b533;animation:tdyg 3.2s ease-in-out infinite}
+@keyframes tdyg{50%{box-shadow:0 0 0 4px #ffd54a88,0 0 30px 8px #ffd54acc,0 0 68px 18px #12a5b544}}
+.tdh{display:flex;align-items:baseline;gap:.8em;flex-wrap:wrap;margin-bottom:.5em}.tdh h3{margin:0;font-size:1.1em}
+.tdt{display:flex;gap:.5em;flex-wrap:wrap;margin:.4em 0 .6em}
+.tdi{padding:.6em 0;border-top:1px dashed var(--line);line-height:1.9}.tdi details{margin-top:.3em}.tdi summary{cursor:pointer;font-weight:600;color:var(--teal)}
 .dash{display:grid;gap:1em;grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
 .dc{background:#fff;border:1px solid var(--line);border-radius:18px;padding:1.1em;box-shadow:0 8px 24px #0b2c4a12;position:relative;overflow:hidden}
 .dc h3{margin:0 0 .6em;font-size:1.05em}
@@ -245,7 +250,7 @@ async function loadSummary(only){
   if(only){a=a.eq('student_code',only);b=b.eq('student_code',only);} else b=b.in('student_code',S.g.stu.map(x=>x.student_code));
   const [sm,r]=await Promise.all([a,b]);
   if(!only){S.g.sum={};S.g.sheet={};S.g.quiz={};}
-  (sm.data||[]).forEach(x=>S.g.sum[x.student_code]=x);
+  (sm.data||[]).forEach(x=>{ if(lab) x.lab_absent=labAbsent(x); S.g.sum[x.student_code]=x; });
   (r.data||[]).forEach(x=>{ if(lab) S.g.quiz[x.student_code+'|'+x.quiz_no]=x; else S.g.sheet[x.student_code]=x; });
 }
 function drawGroup(){
@@ -267,14 +272,14 @@ function drawGroup(){
 }
 function drawList(){
   const q=($('#q')?.value||'').trim(), lab=S.t==='lab';
-  {const pw=$('#pgw'); if(pw){const n=S.g.stu.length,d=S.g.stu.filter(x=>S.g.ass[x.student_code]).length,pc=n?Math.round(d/n*100):0; pw.innerHTML=`<div class="muted">تقدم الجلسة: تم تسجيل ${d} من ${n} - متبقي ${n-d}</div><div class="bar"><i style="width:${pc}%"></i></div>`;}}
+  {const pw=$('#pgw'); if(pw){const n=S.g.stu.length,d=S.g.stu.filter(x=>S.g.ass[x.student_code]).length,pc=n?Math.round(d/n*100):0; pw.innerHTML=`<div class="muted">تقدم الجلسة: تم تسجيل ${d} من ${n} - متبقي ${n-d} - حاضر ${S.g.stu.filter(x=>S.g.ass[x.student_code]?.status==='present').length} - غائب ${S.g.stu.filter(x=>S.g.ass[x.student_code]?.status==='absent').length}</div><div class="bar"><i style="width:${pc}%"></i></div>`;}}
   if(!q&&!S.showAll){
     const left=S.g.stu.filter(x=>!S.g.ass[x.student_code]).length;
     $('#ls').innerHTML=`<div class="row" style="justify-content:center"><b>${left?`المتبقي ${left} طالب لم يُسجَّل في هذه الجلسة`:'تم تسجيل جميع الطلاب في هذه الجلسة ✓'}</b></div><div class="row" style="justify-content:center"><span class="muted">للرجوع إلى طالب سبق تسجيله أو متأخر اكتب اسمه في البحث</span></div>${left?'<button class="row" onclick="openFirst()" style="justify-content:center">البدء من أول طالب لم يُسجَّل</button>':''}<button class="row" onclick="S.showAll=true;drawList()" style="justify-content:center">عرض كل الطلاب</button>`; return; }
   const rows=S.g.stu.filter(s=>!q||s.full_name.includes(q)).map(s=>{
     const a=S.g.ass[s.student_code], m=S.g.sum[s.student_code]||{};
     const c=!a?'<span class="chip">لم يُسجَّل</span>':a.status==='present'?'<span class="chip c">حاضر</span>':`<span class="chip a">غـ${a.makeup_done?(a.sick_excuse?' (عوّض - مرضي)':' (عوّض)'):''}</span>`;
-    const tot=lab?m.total_30:m.total_20, ds=m.absent_all?'غـ':(tot!=null?tot:'غير مكتمل');
+    const tot=lab?m.total_30:m.total_20, ds=lab?(m.lab_absent?'غـ'+(tot!=null?' ('+tot+')':''):(tot!=null?tot:'غير مكتمل')):(m.absent_all?'غـ':(tot!=null?tot:'غير مكتمل'));
     return `<button class="row" onclick="openStu('${s.student_code}')"><span class="n">${s.serial_no}</span><span class="nm">${e(s.full_name)}</span>${c}${a&&a._pending?'<span class="muted" title="محفوظ على الجهاز ولم يصل للخادم">⏳</span>':''}<span class="muted">${ds}</span></button>`}).join('');
   $('#ls').innerHTML=(rows||'<div class="row">لا توجد نتائج</div>')+(!q&&S.showAll?'<button class="row" onclick="S.showAll=false;drawList()" style="justify-content:center">إخفاء القائمة</button>':'');
 }
@@ -334,7 +339,7 @@ function drawStu(){
      <div class="bar2"><div><label for="q1">Quiz 1 (من ${num('lab.quiz1_max')})</label><input id="q1" type="number" min="0" step="0.5" value="${e(M.q1)}" oninput="M.q1=this.value"></div>
      <div><label for="q2">Quiz 2 (من ${num('lab.quiz2_max')})</label><input id="q2" type="number" min="0" step="0.5" value="${e(M.q2)}" oninput="M.q2=this.value"></div></div>
      <button class="pri" style="width:100%;margin-top:.6em" onclick="saveQ()">حفظ الكويز</button>
-     <div class="sum">الحضور: <b>${m.att_sum_3??'-'}</b> / ${labAtt} &nbsp; السلوك واليونيفورم: <b>${m.beh_sum_3??'-'}</b> / ${labBeh}<br>المشاركة: <b>${m.participation_4??'-'}</b> / ${num('lab.participation_max')} &nbsp; Quiz 1: <b>${m.quiz1_10??'-'}</b> &nbsp; Quiz 2: <b>${m.quiz2_10??'-'}</b><br>الإجمالي: <b>${m.total_30??'غير مكتمل'}</b> / ${num('lab.total_max')}</div>`;
+     <div class="sum">الحضور: <b>${m.lab_absent?'غـ':(m.att_sum_3??'-')}</b> / ${labAtt} &nbsp; السلوك واليونيفورم: <b>${m.lab_absent?'غـ':(m.beh_sum_3??'-')}</b> / ${labBeh}<br>المشاركة: <b>${m.participation_4??'-'}</b> / ${num('lab.participation_max')} &nbsp; Quiz 1: <b>${m.quiz1_10??'-'}</b> &nbsp; Quiz 2: <b>${m.quiz2_10??'-'}</b><br>الإجمالي: <b>${m.total_30??'غير مكتمل'}</b> / ${num('lab.total_max')}</div>`;
   }
   const o=$('#md'); const html=`<div class="sheet" role="dialog" aria-label="تقييم طالب"><div style="display:flex;justify-content:space-between;gap:1em"><div style="flex:1;min-width:0"><h2 style="margin:0;overflow-wrap:anywhere;line-height:1.5">${e(s.full_name)}</h2><div class="muted">${e(s.student_code)} - ${TN[S.t]} - الجلسة ${S.sn}</div></div><div style="display:flex;gap:.4em"><button onclick="navStu(-1)">السابق</button><button onclick="navStu(1)">التالي</button><button onclick="closeStu()" aria-label="إغلاق">إغلاق</button></div></div>${body}<div class="st" id="msg" role="status"></div></div>`;
   if(o) o.innerHTML=html; else {const d=document.createElement('div'); d.className='modal'; d.id='md'; d.innerHTML=html; document.body.appendChild(d);}
@@ -428,6 +433,7 @@ async function staffView(tab,silent){
       p?all('v_lab_summary','*',q=>q.eq('period_id',p).order('student_code')):[],
       all('students','student_code,group_code,serial_no,full_name',q=>q.order('student_code')),
       p?all('v_grand_total','*',q=>q.eq('period_id',p).order('student_code')):[]]);
+    lb.forEach(x=>{x.lab_absent=labAbsent(x);});
     S.st={grp:grp.sort((a,b)=>nat(a.code,b.code)),docs,asg,cl,lb,stu,gt,n:stu.length,at:Date.now()};
   }catch(er){if(silent)return;app.innerHTML=shell(`<div class="card">فشل التحميل: ${e(er.message)}</div>`);return;}
   if(!silent){drawStaff();return;}
@@ -435,6 +441,9 @@ async function staffView(tab,silent){
 }
 function rowsFor(t){return t==='lab'?S.st.lb:S.st.cl.filter(x=>x.training_type_code===t);}
 const isDone=x=>x.status==='complete'||x.absent_all;
+/* غياب اللاب: نفس منطق الإكسيل (سجّل له جلسة واحدة على الأقل ولم يحضر أي جلسة). للعرض والعدّ فقط، لا يغيّر أي درجة */
+function labAbsent(x){const r=Number(x&&x.sessions_recorded)||0; if(!r) return false; const a=x.sessions_attended!=null?Number(x.sessions_attended):(x.sessions_absent!=null?r-Number(x.sessions_absent):NaN); return a===0;}
+const isAbs=x=>!!x&&(!!x.absent_all||!!x.lab_absent);
 function showTab(k){ S.tab=k; if(S.st&&Date.now()-S.st.at<120000) drawStaff(); else staffView(k); }
 function drawStaff(){
   liveStart();
@@ -471,8 +480,8 @@ function dashGo(r){
   r.querySelectorAll('[data-n]').forEach(el=>tw(el,el.dataset.k,+el.dataset.n,el.dataset.s));
 }
 function tabSum(){
-  const st=S.st, mx=TYPES.map(t=>{const x=rowsFor(t),d=x.filter(isDone).length,a=x.filter(y=>y.absent_all).length;return{t,n:x.length,d,a,p:x.length?d/x.length*100:0};});
-  const tn=mx.reduce((s,x)=>s+x.n,0),td=mx.reduce((s,x)=>s+x.d,0),ta=mx.reduce((s,x)=>s+x.a,0),tp=tn?td/tn*100:0;
+  const st=S.st, mx=TYPES.map(t=>{const x=rowsFor(t),d=x.filter(isDone).length,a=x.filter(isAbs).length,g=x.filter(y=>isDone(y)&&!isAbs(y)).length;return{t,n:x.length,d,a,g,p:x.length?d/x.length*100:0};});
+  const tn=mx.reduce((s,x)=>s+x.n,0),td=mx.reduce((s,x)=>s+x.d,0),ta=mx.reduce((s,x)=>s+x.a,0),tg=mx.reduce((s,x)=>s+x.g,0),tp=tn?td/tn*100:0;
   const bg={}; st.grp.forEach(g=>bg[g.code]=[0,0]);
   TYPES.forEach(t=>rowsFor(t).forEach(x=>{const o=bg[x.group_code]||(bg[x.group_code]=[0,0]);o[1]++;if(isDone(x))o[0]++;}));
   const gl=Object.entries(bg).filter(([,v])=>v[1]).map(([k,v])=>({k,d:v[0],n:v[1],p:Math.round(v[0]/v[1]*100)})).sort((a,b)=>a.p-b.p||nat(a.k,b.k));
@@ -482,16 +491,49 @@ function tabSum(){
   const bm=Math.max(1,...bk.map(x=>x.n));
   const bar=(k,l,v,n,txt,c)=>`<div class="gb"><b>${e(l)}</b><div class="gbar"><i class="bf" data-v="${v}" style="width:${pvg(k)}%${c?';background:'+c:''}"></i></div><span><span data-k="${k}" data-n="${n}">${n}</span>${txt}</span></div>`;
   $('#tb').innerHTML=`<div class="dhd"><h3 style="margin:0">لوحة المتابعة المباشرة</h3><span class="live${S.rtOk?'':' off'}"><i></i><em>${S.rtOk?'مباشر':'تحديث دوري'}</em></span><span class="muted">آخر تحديث: ${new Date().toLocaleTimeString('ar-EG')}</span></div>
+  <div id="tdy" class="tdy">${tdyHtml(S.today)}</div>
   <div class="dash">
-   <div class="dc"><h3>الإنجاز الكلي</h3><div class="rg">${seg([{v:td-ta,c:'#2f9e44'},{v:ta,c:'#e8a900'},{v:tn-td,c:'#e2231a'}],150,'all',tp)}<div><div class="big2">${td}/${tn}</div><div class="muted">سجل مكتمل</div></div></div>
-    <div class="lgd"><span><i style="background:#2f9e44"></i>مكتمل ${td-ta}</span><span><i style="background:#e8a900"></i>غائب كل الجلسات ${ta}</span><span><i style="background:#e2231a"></i>غير مكتمل ${tn-td}</span></div></div>
+   <div class="dc"><h3>الإنجاز الكلي</h3><div class="rg">${seg([{v:tg,c:'#2f9e44'},{v:ta,c:'#e8a900'},{v:tn-tg-ta,c:'#e2231a'}],150,'all',tp)}<div><div class="big2">${td}/${tn}</div><div class="muted">سجل مكتمل</div></div></div>
+    <div class="lgd"><span><i style="background:#2f9e44"></i>مكتمل ${tg}</span><span><i style="background:#e8a900"></i>غائب كل الجلسات ${ta}</span><span><i style="background:#e2231a"></i>غير مكتمل ${tn-tg-ta}</span></div></div>
    ${mx.map(x=>`<div class="dc"><h3>${TN[x.t]}</h3><div class="rg">${ring('t:'+x.t,x.p,DCOL[x.t],104)}<div><div class="big2"><span data-k="td:${x.t}" data-n="${x.d}">${x.d}</span>/${x.n}</div><div class="muted">مكتمل</div><div class="muted">غـ: ${x.a}</div></div></div></div>`).join('')}
    <div class="dc w2"><h3>اكتمال المجموعات (الأقل إنجازًا أولًا)</h3><div class="gscroll">${gl.map(g=>bar('g:'+g.k,g.k,g.p,g.p,'%')+'').join('')||'<div class="muted">لا توجد بيانات</div>'}</div></div>
    <div class="dc"><h3>توزيع درجات الشيتات (من ${smx})</h3><div class="seg dsg">${[['all','الكل'],['antenatal','Antenatal'],['labor','Labor'],['postnatal','Postnatal']].map(([k,l])=>`<button class="${dd===k?'on':''}" onclick="S.dd='${k}';tabSum()">${l}</button>`).join('')}</div>${bk.map((b,i)=>bar('d:'+i,b.l,Math.round(b.n/bm*100),b.n,' طالب',b.c)).join('')}<div class="muted">${tot.length} سجل له درجة شيت</div></div>
    <div class="dc"><h3>آخر النشاطات</h3><ul class="feed" id="feed"><li class="muted">جارٍ التحميل...</li></ul></div>
   </div>`;
   requestAnimationFrame(()=>requestAnimationFrame(()=>dashGo($('#tb'))));
-  loadFeed();
+  loadFeed(); loadToday();
+}
+
+/* ---------- ملخص اليوم (قراءة فقط) ---------- */
+const docNm=n=>'الدكتور '+String(n||'').replace(/^\s*(الدكتور|دكتور|د\s*[.\/]?)\s*/,'').trim();
+function tdyHtml(T){
+  const ds=new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+  const hd=`<div class="tdh"><h3>ملخص اليوم</h3><span class="muted">${e(ds)}</span></div>`;
+  if(!T) return hd+'<div class="muted">جارٍ تحميل ملخص اليوم...</div>';
+  if(T.err) return hd+'<div class="muted">تعذر تحميل ملخص اليوم</div>';
+  if(!T.items.length) return hd+'<div class="tdi">لم يتم أخذ غياب في أي مجموعة اليوم حتى الآن.</div>';
+  const P=T.items.reduce((a,x)=>a+x.pres,0), A=T.items.reduce((a,x)=>a+x.abs.length,0);
+  return hd+`<div class="tdt"><span class="chip">الجلسات: <b>${T.items.length}</b></span><span class="chip c">إجمالي الحضور: <b>${P}</b></span><span class="chip a">إجمالي الغياب: <b>${A}</b></span></div>`+
+   T.items.map(x=>`<div class="tdi">المجموعة <b>${e(x.g)}</b> (${e(x.t)} - جلسة ${x.sn}): قام <b>${e(x.doc)}</b> بأخذ الغياب فيها. عدد الطلاب <b>${x.n}</b>، عدد الحضور <b>${x.pres}</b>، وعدد الغائبين <b>${x.abs.length}</b>${x.left?` <span class="muted">(لم يُسجَّل ${x.left})</span>`:''}.${x.abs.length?`<details><summary>أسماء الغائبين</summary><div class="muted">${x.abs.map(n=>e(n)).join(' - ')}</div></details>`:''}</div>`).join('');
+}
+async function loadToday(){
+  if(!$('#tdy')) return; const p=S.period?.id; if(!p){ S.today={items:[]}; $('#tdy').innerHTML=tdyHtml(S.today); return; }
+  try{
+    const day=new Date().toLocaleDateString('en-CA');
+    const [cs,ls]=await Promise.all([
+      all('clinical_sessions','id,group_code,training_type_code,session_no,doctor_id',q=>q.eq('period_id',p).eq('session_date',day).order('id')),
+      all('lab_sessions','id,group_code,session_no,doctor_id',q=>q.eq('period_id',p).eq('session_date',day).order('id'))]);
+    const [ca,la]=await Promise.all([
+      cs.length?all('clinical_assessments','id,session_id,student_code,status',q=>q.in('session_id',cs.map(x=>x.id)).order('id')):[],
+      ls.length?all('lab_assessments','id,session_id,student_code,status',q=>q.in('session_id',ls.map(x=>x.id)).order('id')):[]]);
+    const dn=Object.fromEntries(S.st.docs.map(d=>[d.user_id,d.full_name])), nm=Object.fromEntries(S.st.stu.map(x=>[x.student_code,x]));
+    const mk=(s,as,t)=>{const a=as.filter(x=>x.session_id===s.id), N=S.st.stu.filter(x=>x.group_code===s.group_code).length, pres=a.filter(x=>x.status==='present').length,
+      ab=a.filter(x=>x.status==='absent').map(x=>(nm[x.student_code]||{}).full_name||x.student_code);
+      return {g:s.group_code,t,sn:s.session_no,doc:docNm(dn[s.doctor_id]||'غير معروف'),n:N,pres,abs:ab,left:Math.max(0,N-pres-ab.length)};};
+    const items=[...cs.map(s=>mk(s,ca,TN[s.training_type_code]||'')),...ls.map(s=>mk(s,la,TN.lab))].sort((a,b)=>nat(a.g,b.g)||a.sn-b.sn);
+    S.today={items};
+  }catch(er){ S.today={err:1,items:[]}; }
+  const b=$('#tdy'); if(b) b.innerHTML=tdyHtml(S.today);
 }
 async function loadFeed(){
   const box=$('#feed'); if(!box) return;
@@ -526,7 +568,7 @@ function tabSumOld(){
 const COLS={clin:[['serial_no','م'],['student_code','الكود'],['full_name','الاسم'],['group_code','المجموعة'],['sessions_recorded','الجلسات'],['sessions_attended','حضر'],['sessions_absent','غياب'],['att_beh_display','حضور وسلوك ويونيفورم /5'],['sheet_score_15','الشيت /15'],['total_20','الإجمالي /20'],['status','الحالة']],
  lab:[['serial_no','م'],['student_code','الكود'],['full_name','الاسم'],['group_code','المجموعة'],['sessions_recorded','الجلسات'],['att_sum_3','حضور /3'],['beh_sum_3','سلوك ويونيفورم /3'],['participation_4','مشاركة /4'],['quiz1_10','Quiz1 /10'],['quiz2_10','Quiz2 /10'],['total_30','الإجمالي /30'],['status','الحالة']]};
 const STAT={complete:'مكتمل',incomplete:'غير مكتمل'};
-function cell(x,k){const v=x[k];if(v==null||v==='')return(['total_20','total_30','att_beh_display','sheet_score_15'].includes(k)&&x.absent_all)?'غـ':(k.includes('score')||k.startsWith('total')||k.startsWith('avg')||k.startsWith('quiz')?'غير مكتمل':'');return k==='status'?(STAT[v]||v):v;}
+function cell(x,k){if(x.lab_absent&&(k==='att_sum_3'||k==='beh_sum_3'))return 'غـ'; const v=x[k];if(v==null||v==='')return(['total_20','total_30','att_beh_display','sheet_score_15'].includes(k)&&x.absent_all)?'غـ':(k.includes('score')||k.startsWith('total')||k.startsWith('avg')||k.startsWith('quiz')?'غير مكتمل':'');return k==='status'?(STAT[v]||v):v;}
 function tabScores(){
   const F=S.f||(S.f={t:'antenatal',g:'',q:'',s:''});
   $('#tb').innerHTML=`<div class="bar2"><div><label for="ft">النوع</label><select id="ft">${TYPES.map(t=>`<option value="${t}" ${F.t===t?'selected':''}>${TN[t]}</option>`).join('')}</select></div>
