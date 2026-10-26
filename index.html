@@ -346,7 +346,7 @@ const msg=(t,c='')=>{const x=$('#msg'); if(x){x.textContent=t; x.className='st '
 
 /* ---------- saving (never reports success before the DB confirms) ---------- */
 const isNet=m=>!navigator.onLine||/failed to fetch|networkerror|load failed|network request|timeout|fetch/i.test(String(m||''));
-const withTO=(p,ms=15000)=>Promise.race([p,new Promise(r=>setTimeout(()=>r({error:{message:'timeout'}}),ms))]);
+const withTO=(p,ms=45000)=>Promise.race([p,new Promise(r=>setTimeout(()=>r({error:{message:'timeout'}}),ms))]);
 async function ensureSession(){
   if(S.g.sess){ S.ps=null; return S.g.sess; }
   const lab=S.t==='lab', row={group_code:S.g.gc, period_id:S.period.id, week_no:S.wk, session_no:S.sn, doctor_id:S.me.user_id, session_date:new Date().toLocaleDateString('en-CA')};
@@ -358,7 +358,7 @@ async function ensureSession(){
   S.ps=null; S.g.sess=r.data; S.g.sessions.push(r.data); return r.data;
 }
 async function write(table, ex, row, key, store){
-  if(S.busy) return; S.busy=true;
+  if(S.busy) return msg('جارٍ حفظ عملية سابقة... انتظر لحظة ثم اضغط حفظ مرة أخرى','st'); S.busy=true;
   try{
     msg('جارٍ الحفظ...');
     const ps=(table==='clinical_assessments'||table==='lab_assessments')?S.ps:null;
@@ -370,7 +370,8 @@ async function write(table, ex, row, key, store){
       if(isNet(r.error.message)) return await queueOp(ctx,table,ex,row,null,store);
       return msg('فشل الحفظ: '+tr(r.error.message)+' - البيانات المدخلة ما زالت أمامك','bad'); }
     if (!r.data.length) return msg('تم تعديل هذا السجل من مستخدم آخر. أغلق البطاقة وافتحها من جديد.','bad');
-    store(r.data[0]); await loadSummary(M.code); drawStu(); msg('تم الحفظ على الخادم بنجاح','good');
+    store(r.data[0]); drawStu(); msg('تم الحفظ على الخادم بنجاح','good');
+    const _c=M&&M.code; loadSummary(_c).then(()=>{ const a=document.activeElement; if(M&&M.code===_c&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))){ const m=$('#msg'),t=m?m.textContent:'',c=m?m.className.replace(/^st\s*/,''):''; drawStu(); msg(t,c); } }).catch(()=>{});
   } finally { S.busy=false; }
 }
 async function saveC(){
@@ -1005,7 +1006,7 @@ const opDel=id=>tx('readwrite',o=>o.delete(id));
 let syncing=false;
 async function queueOp(ctx,table,ex,row,ps,store){
   try{
-    const uid=S.me.user_id, old=(await opsAll()).find(o=>o.ctx===ctx&&o.uid===uid&&o.status!=='conflict');
+    const uid=S.me.user_id, old=(await opsAll()).find(o=>o.ctx===ctx&&o.uid===uid); if(old&&old.status==='conflict'&&(old.server||old.kind==='insert')){ mine(old); old.auto=0; }
     const r2={...row}; if(ps) delete r2.session_id;
     let op;
     if(old){ op={...old,row:{...old.row,...r2},status:'pending',err:null}; if(ps&&!op.sessRow) op.sessRow=ps; }
@@ -1020,16 +1021,22 @@ function adopt(row){
   try{ for(const m of [S.g.ass,S.g.all,S.g.sheet,S.g.quiz]) for(const k in m){const v=m[k];
     if(v&&v._pending&&v.student_code===row.student_code&&(!row.session_id||!v.session_id||v.session_id===row.session_id)&&(row.quiz_no==null||v.quiz_no===row.quiz_no)) m[k]=row; } }catch(_){}
 }
+const eqv=(a,b)=>{a=a??'';b=b??'';if(String(a)===String(b))return true;const x=Number(a),y=Number(b);return a!==''&&b!==''&&isFinite(x)&&isFinite(y)&&x===y;};
+const mine=o=>{ if(o.server){o.kind='update';o.rowId=o.server.id;o.ver=o.server.version;} else {o.kind='insert';o.rowId=undefined;o.ver=undefined;} o.status='pending'; o.err=null; return o; };
 async function conflict(o,row){
   let q=SB.from(o.table).select('*');
   if(o.rowId!=null) q=q.eq('id',o.rowId); else for(const k of ['student_code','session_id','quiz_no','period_id','training_type_code']) if(row[k]!=null) q=q.eq(k,row[k]);
   const r=await withTO(q.maybeSingle()); if(r.error) throw r.error;
   const sv=r.data;
-  if(sv&&Object.keys(o.row).every(k=>String(sv[k]??'')===String(o.row[k]??''))){ await opDel(o.id); adopt(sv); return 'ok'; }
-  o.status='conflict'; o.server=sv; await opPut(o); return 'next';
+  if(sv&&Object.keys(o.row).every(k=>eqv(sv[k],o.row[k]))){ await opDel(o.id); adopt(sv); return 'ok'; }
+  /* auto-resolve: the doctor's explicit save wins; retry on top of the server's current version */
+  o.server=sv; o.auto=(o.auto||0)+1;
+  if(o.auto>6||(!sv&&o.kind==='update')){ o.status='conflict'; await opPut(o); return 'next'; }
+  mine(o); await opPut(o); return 'again';
 }
 async function syncOne(o){
   try{
+    if(o.status==='conflict'&&(o.server||o.kind==='insert')) mine(o);
     const row={...o.row};
     if(o.sessRow){
       const sr=o.sessRow, lab=!sr.training_type_code, t=lab?'lab_sessions':'clinical_sessions';
@@ -1058,8 +1065,8 @@ async function syncOne(o){
 async function sync(){
   if(syncing||!S.me||!navigator.onLine) return; syncing=true; S.auth=false; bar();
   try{
-    const ops=(await opsAll()).filter(o=>o.uid===S.me.user_id&&(o.status==='pending'||o.status==='error')).sort((a,b)=>a.createdAt-b.createdAt);
-    let n=0; for(const o of ops){ const r=await syncOne(o); if(r==='ok') n++; if(r==='stop') break; }
+    const ops=(await opsAll()).filter(o=>o.uid===S.me.user_id&&(o.status==='pending'||o.status==='error'||(o.status==='conflict'&&(o.auto||0)<=6))).sort((a,b)=>a.createdAt-b.createdAt);
+    let n=0; for(const o of ops){ let r=await syncOne(o); for(let k=0;r==='again'&&k<4;k++) r=await syncOne(o); if(r==='ok') n++; if(r==='stop') break; }
     if(n) S.lastSync=new Date();
   }finally{ syncing=false; bar(); }
 }
@@ -1092,7 +1099,7 @@ async function syncPanel(){
 async function resolveOp(id,w){
   const o=(await opsAll()).find(x=>x.id===id); if(!o) return;
   if(w==='server') await opDel(id);
-  else{ if(o.server){o.kind='update';o.rowId=o.server.id;o.ver=o.server.version;} else o.kind='insert'; o.status='pending'; await opPut(o); }
+  else{ mine(o); o.auto=0; await opPut(o); }
   await sync(); await syncPanel(); bar();
 }
 window.addEventListener('online',()=>{bar();sync();}); window.addEventListener('offline',bar);
@@ -1123,7 +1130,7 @@ async function cfetch(input,init){
   const h=new Headers((init&&init.headers)||(typeof input!=='string'?input.headers:{})||{});
   const key=(S.uid||'')+'|'+(h.get('accept')||'')+'|'+(h.get('prefer')||'')+'|'+url;
   try{
-    const r=await Promise.race([fetch(input,init),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),10000))]);
+    const r=await Promise.race([fetch(input,init),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),30000))]);
     if(r.ok){ r.clone().text().then(body=>rput({k:key,body,status:r.status,ct:r.headers.get('content-type'),cr:r.headers.get('content-range'),at:Date.now()})).catch(()=>{}); if(S.stale){S.stale=null;bar();} }
     return r;
   }catch(er){
@@ -1141,7 +1148,7 @@ async function offUser(){
 async function overlay(){
   try{
     if(!S.g||!S.me) return; const lab=S.t==='lab', gc=S.g.gc;
-    for(const o of (await opsAll()).filter(x=>x.uid===S.me.user_id&&x.status!=='conflict')){
+    for(const o of (await opsAll()).filter(x=>x.uid===S.me.user_id)){
       const r=o.row, code=r.student_code; if(!code||!S.g.stu.some(x=>x.student_code===code)) continue;
       const mk=old=>({...(old||{}),...r,_pending:true});
       if(o.table==='clinical_assessments'||o.table==='lab_assessments'){
