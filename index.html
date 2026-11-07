@@ -152,6 +152,18 @@ main:has(.dash){max-width:1280px}
 main>.credit{padding-bottom:64px}
 @media print{.credit{margin-top:10px}}
 .ck{width:20px!important;height:20px;min-height:auto!important;padding:0!important}.acts{display:flex;gap:.5em;flex-wrap:wrap;align-items:center;margin:.6em 0}.acts .muted{flex:1;min-width:140px}button.dng{background:var(--red);color:#fff;border-color:var(--red);font-weight:600}button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ===== bell ===== */
+.bell{position:relative;min-width:44px;padding:.2em .6em}
+.bell svg{width:22px;height:22px;display:block}
+.bell .bd{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:var(--gold);color:#0b2c4a;font-size:.72em;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.bell .bd.red{background:var(--red);color:#fff}
+.bell.new svg{animation:ring 2s ease-in-out infinite;transform-origin:50% 0}
+@keyframes ring{0%,50%,100%{transform:rotate(0)}10%{transform:rotate(14deg)}20%{transform:rotate(-12deg)}30%{transform:rotate(8deg)}40%{transform:rotate(-6deg)}}
+@media(prefers-reduced-motion:reduce){.bell.new svg{animation:none}}
+.nt{border:1px solid var(--line);border-radius:var(--r);margin:.7em 0;overflow:hidden}
+.nt h4{margin:0;padding:.5em .8em;font-size:1em}
+.nt .it{display:flex;gap:.6em;align-items:center;padding:.55em .8em;border-top:1px solid var(--line)}
 </style></head>
 <body>
 <div id="app"></div>
@@ -186,7 +198,7 @@ function loginView(msg=''){
     if (error) $('#er').textContent='فشل تسجيل الدخول'; else boot();
   };
 }
-const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em"><button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
+const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em;align-items:center">${bellHtml()}<button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
 function goHome(){ $('#md')?.remove(); S.me.role==='doctor'?home():staffView(S.tab||'sum'); }
 async function logout(){ await SB.auth.signOut(); S.me=null; loginView(); }
 
@@ -548,7 +560,7 @@ function liveBadge(){const b=document.querySelector('.live');if(!b)return;b.clas
 function toastLive(){let t=$('#tl');if(!t){t=document.createElement('div');t.id='tl';t.className='toastl';document.body.appendChild(t);}t.textContent='● تم تحديث البيانات تلقائيًا';t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2600);}
 async function liveRefresh(ev){
   if(S.lr||!navigator.onLine||!S.st||!document.querySelector('.top')) return; S.lr=1;
-  try{ await staffView(S.tab,true); if(ev) toastLive(); }finally{ S.lr=0; }
+  try{ await staffView(S.tab,true); bellLoad(); if(ev) toastLive(); }finally{ S.lr=0; }
 }
 function liveStart(){
   if(S.live||!S.me||S.me.role==='doctor') return; S.live=1;
@@ -958,9 +970,10 @@ async function tabAbs(){
 function absLevel(n){return n>=4?{k:3,l:'حرمان',c:'#fff',bg:'#b3362f'}:n===3?{k:2,l:'إنذار ثانٍ',c:'#b3362f',bg:'#f8e0de'}:n===2?{k:1,l:'إنذار أول',c:'#8a5a00',bg:'#fff1cc'}:null;}
 function absWarns(){
   const {rows,F}=S.abs, cnt={};
-  rows.forEach(r=>{(cnt[r.sc]||(cnt[r.sc]={sc:r.sc,g:r.g,ser:r.ser,name:r.name,n:0})).n++;});
+  rows.forEach(r=>{const c=(cnt[r.sc]||(cnt[r.sc]={sc:r.sc,g:r.g,ser:r.ser,name:r.name,n:0,mk:[],sk:0}));c.n++;if(r.mk===true)c.mk.push(r.md||'');if(r.sk)c.sk++;});
   return Object.values(cnt).map(x=>({...x,lv:absLevel(x.n)})).filter(x=>x.lv&&(!F.g||x.g===F.g)).sort((a,b)=>b.n-a.n||nat(a.g,b.g)||a.ser-b.ser);
 }
+const mkNote=x=>{const out=[];if(x.mk&&x.mk.length){const ds=x.mk.filter(Boolean);const dt=ds.length?' <span dir="ltr">'+ds.map(e).join('، ')+'</span>':'';out.push(x.mk.length===1?'قام الطالب بالتعويض'+(ds.length?' يوم'+dt:''):'قام الطالب بالتعويض ('+x.mk.length+' من '+x.n+')'+(ds.length?' أيام:'+dt:''));}if(x.sk)out.push(x.sk===1?'لديه عذر مرضي':'لديه عذر مرضي ('+x.sk+' من '+x.n+')');return out.join(' — ');};
 const lvChip=lv=>`<span class="chip" style="background:${lv.bg};color:${lv.c};font-weight:700">${lv.l}</span>`;
 function absFiltered(){const {rows,F}=S.abs;return rows.filter(r=>(!F.g||r.g===F.g)&&(!F.t||r.t===F.t));}
 function drawAbs(){
@@ -969,7 +982,7 @@ function drawAbs(){
   const sum=Object.keys(cnt).sort(nat).map(g=>`<span class="chip">${e(g)}: ${cnt[g]}</span>`).join(' ')||'<span class="muted">لا يوجد غياب مسجّل</span>';
   const W=absWarns(), wc=k=>W.filter(x=>x.lv.k===k).length;
   const warnHtml=W.length?`<div class="sum" style="margin:.6em 0;padding:.7em"><b>تنبيهات الغياب</b> <span class="muted">(إجمالي كل الجلسات)</span><div style="margin:.4em 0;display:flex;gap:.5em;flex-wrap:wrap">${lvChip(absLevel(2))} ${wc(1)} &nbsp; ${lvChip(absLevel(3))} ${wc(2)} &nbsp; ${lvChip(absLevel(4))} ${wc(3)}</div>
-  <div class="tw"><table><thead><tr><th>م</th><th>الطالب</th><th>المجموعة</th><th>عدد مرات الغياب</th><th>الحالة</th></tr></thead><tbody>${W.map(x=>`<tr><td>${x.ser}</td><td>${e(x.name)}</td><td>${e(x.g)}</td><td>${x.n}</td><td>${lvChip(x.lv)}</td></tr>`).join('')}</tbody></table></div></div>`:'<div class="muted" style="margin:.6em 0">لا توجد تنبيهات غياب (لا يوجد طالب غاب مرتين أو أكثر)</div>';
+  <div class="tw"><table><thead><tr><th>م</th><th>الطالب</th><th>المجموعة</th><th>عدد مرات الغياب</th><th>الحالة</th><th>ملاحظة</th></tr></thead><tbody>${W.map(x=>`<tr><td>${x.ser}</td><td>${e(x.name)}</td><td>${e(x.g)}</td><td>${x.n}</td><td>${lvChip(x.lv)}</td><td>${mkNote(x)}</td></tr>`).join('')}</tbody></table></div></div>`:'<div class="muted" style="margin:.6em 0">لا توجد تنبيهات غياب (لا يوجد طالب غاب مرتين أو أكثر)</div>';
   $('#tb').innerHTML=`<div class="bar2"><div><label for="ag2">المجموعة</label><select id="ag2"><option value="">الكل</option>${S.st.grp.map(g=>`<option ${F.g===g.code?'selected':''}>${e(g.code)}</option>`).join('')}</select></div>
   <div><label for="at3">النوع</label><select id="at3"><option value="">الكل</option>${TYPES.map(t=>`<option value="${t}" ${F.t===t?'selected':''}>${TN[t]}</option>`).join('')}</select></div></div>
   ${warnHtml}<div style="margin:.6em 0;display:flex;gap:.5em"><button class="pri" onclick="exportAbs()">تصدير Excel</button><button onclick="window.print()">طباعة / PDF</button></div>
@@ -1146,7 +1159,7 @@ async function resolveOp(id,w){
 }
 window.addEventListener('online',()=>{bar();sync();}); window.addEventListener('offline',bar);
 setInterval(()=>{ if(navigator.onLine) sync(); },30000);
-boot=(f=>async function(){ await f(); bar(); sync();
+boot=(f=>async function(){ await f(); bar(); sync(); bellLoad(true);
   try{ if(S.me&&S.me.role==='doctor'&&navigator.onLine&&!S.g&&Date.now()-(+localStorage.getItem('nq_prewarm_'+S.me.user_id)||0)>6*3600e3) await prewarm(true); }catch(_){} })(boot);
 function crData(){ return window.__CR||(window.__CR=Object.assign({designer_name:'د. محمد محمود',designer_role:'تصميم وتطوير',designer_tagline:'نظامٌ صُمِّم بشغفٍ وإتقان، ليخدم رسالة التمريض ويرتقي بجودة التقييم العملي.',copyright:'2027'},(()=>{try{return JSON.parse(localStorage.getItem('nq_credit')||'{}')}catch(_){return {}}})())); }
 function crInner(){ const c=crData(); return `<div class="rl">${e(c.designer_role)}</div><div class="nm">${e(c.designer_name)}</div><div class="tg">${e(c.designer_tagline)}</div><div class="cp">${e(c.copyright)}</div>`; }
@@ -1222,6 +1235,58 @@ async function prewarm(auto){
   else{ localStorage.setItem('nq_prewarm_'+S.me.user_id,String(Date.now())); if(!auto) alert('تم تجهيز بياناتك. يمكنك الآن فتح المجموعات والتقييم دون إنترنت.'); }
   if(!S.g&&S.me.role==='doctor') home();
 }
+/* ---------- الجرس: تنبيهات الحرمان/الإنذارات + تأخر تسجيل الجلسات ---------- */
+const LATE_DAYS=1;
+function bellHtml(){
+  const b=S.bell&&S.bell.uid===S.me?.user_id?S.bell:null, d=b?b.dep:0, n=b?b.dep+b.war+b.L.length:0;
+  return `<button class="bell${b&&b.fresh?' new':''}" id="bell" onclick="bellOpen()" aria-label="التنبيهات${n?' ('+n+')':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>${n?`<span class="bd${d?' red':''}">${d||n}</span>`:''}</button>`;
+}
+function bellPaint(){const x=$('#bell'); if(x) x.outerHTML=bellHtml();}
+async function bellLoad(force){
+  if(S.bl||!S.me||!S.period||!navigator.onLine) return;
+  if(!force&&S.bell&&Date.now()-S.bell.at<60000) return;
+  S.bl=1;
+  try{
+    const p=S.period.id, doc=S.me.role==='doctor', gs=[...new Set((S.assign||[]).map(x=>x.group_code))];
+    if(doc&&!gs.length) return;
+    const fg=q=>doc?q.in('group_code',gs):q;
+    const [cs,ls,stu,docs,ca,la]=await Promise.all([
+      all('clinical_sessions','id,group_code,training_type_code,session_no,session_date,created_at,doctor_id',q=>fg(q.eq('period_id',p)).order('id')),
+      all('lab_sessions','id,group_code,session_no,session_date,created_at,doctor_id',q=>fg(q.eq('period_id',p)).order('id')),
+      S.st?S.st.stu:all('students','student_code,group_code,serial_no,full_name',q=>fg(q.order('student_code'))),
+      S.st?S.st.docs:(doc?[]:all('doctors','user_id,full_name')),
+      all('clinical_assessments','id,session_id,student_code,makeup_done,makeup_date,sick_excuse',q=>q.eq('status','absent').order('id')),
+      all('lab_assessments','id,session_id,student_code',q=>q.eq('status','absent').order('id'))]);
+    const cm=Object.fromEntries(cs.map(x=>[x.id,x])), lm=Object.fromEntries(ls.map(x=>[x.id,x])), sm=Object.fromEntries(stu.map(x=>[x.student_code,x])), cnt={};
+    const add=(s,a)=>{const st=s&&sm[a.student_code]; if(!st) return; const c=cnt[a.student_code]||(cnt[a.student_code]={sc:a.student_code,g:s.group_code,ser:st.serial_no||0,name:st.full_name,n:0,mk:[],sk:0}); c.n++; if(a.makeup_done===true) c.mk.push(a.makeup_date||''); if(a.sick_excuse) c.sk++;};
+    ca.forEach(a=>add(cm[a.session_id],a)); la.forEach(a=>add(lm[a.session_id],a));
+    const W=Object.values(cnt).map(x=>({...x,lv:absLevel(x.n)})).filter(x=>x.lv).sort((a,b)=>b.lv.k-a.lv.k||b.n-a.n||nat(a.g,b.g)||a.ser-b.ser);
+    const dn=Object.fromEntries(docs.map(d=>[d.user_id,d.full_name])), day=s=>new Date(s).toLocaleDateString('en-CA');
+    const L=[...cs.map(s=>({...s,t:s.training_type_code})),...ls.map(s=>({...s,t:'lab'}))]
+      .map(s=>({...s,d:s.created_at&&s.session_date?Math.round((new Date(day(s.created_at))-new Date(s.session_date))/864e5):0,doc:dn[s.doctor_id]||''}))
+      .filter(s=>s.d>=LATE_DAYS&&Date.now()-new Date(s.created_at)<14*864e5&&(!doc||s.doctor_id===S.me.user_id))
+      .sort((a,b)=>String(b.created_at).localeCompare(a.created_at));
+    const key='nq_bell_'+S.me.user_id; let seen=new Set(); try{seen=new Set(JSON.parse(localStorage.getItem(key)||'[]'));}catch(_){}
+    const keys=[...W.map(x=>x.sc+':'+x.lv.k),...L.map(s=>'L'+s.t+s.id)], nw=new Set(keys.filter(k=>!seen.has(k)));
+    S.bell={uid:S.me.user_id,at:Date.now(),W,L,dep:W.filter(x=>x.lv.k===3).length,war:W.filter(x=>x.lv.k<3).length,keys,nw,fresh:nw.size>0};
+    bellPaint();
+  }catch(_){}finally{S.bl=0;}
+}
+async function bellOpen(){
+  if(!S.bell||S.bell.uid!==S.me.user_id) await bellLoad(true);
+  const b=S.bell; if(!b) return alert('تعذّر تحميل التنبيهات. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.');
+  const nwc=k=>b.nw.has(k)?' <span class="chip" style="background:#fff1cc;color:#8a5a00">جديد</span>':'';
+  const sec=k=>{const l=b.W.filter(x=>x.lv.k===k); if(!l.length) return ''; const lv=absLevel(k===3?4:k+1);
+    return `<div class="nt"><h4 style="background:${lv.bg};color:${lv.c}">${lv.l} (${l.length})</h4>${l.map(x=>`<div class="it"><div style="flex:1;min-width:0"><b>${e(x.name)}</b>${nwc(x.sc+':'+k)}<div class="muted">مجموعة ${e(x.g)}${mkNote(x)?' — '+mkNote(x):''}</div></div><span class="chip">${x.n} غياب</span></div>`).join('')}</div>`;};
+  const late=b.L.length?`<div class="nt"><h4 style="background:var(--teal2)">تأخر تسجيل الجلسات — آخر 14 يومًا (${b.L.length})</h4>${b.L.slice(0,40).map(s=>`<div class="it"><div style="flex:1;min-width:0"><b>${e(TN[s.t]||'')} — جلسة ${s.session_no}</b>${nwc('L'+s.t+s.id)}<div class="muted">مجموعة ${e(s.group_code)}${s.doc?' — '+e(s.doc):''} — تاريخ الجلسة <span dir="ltr">${e(s.session_date)}</span></div></div><span class="chip${s.d>=3?' a':''}">بعد ${s.d} ${s.d===1?'يوم':s.d===2?'يومين':'أيام'}</span></div>`).join('')}</div>`:'';
+  const body=sec(3)+sec(2)+sec(1)+late||'<div class="card" style="margin-top:.8em">لا توجد تنبيهات حاليًا ✓</div>';
+  $('#bm')?.remove();
+  document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="bm" onclick="if(event.target===this)this.remove()"><div class="sheet" role="dialog" aria-label="التنبيهات"><h2 style="margin:0 0 .3em">التنبيهات</h2><div class="muted">حرمان: 4 غيابات فأكثر — إنذار ثانٍ: 3 — إنذار أول: 2</div>${body}<div class="acts">${S.me.role!=='doctor'?`<button class="pri" onclick="$('#bm').remove();showTab('abs')">تفاصيل الغياب</button>`:''}<button onclick="$('#bm').remove()">إغلاق</button></div></div></div>`);
+  try{localStorage.setItem('nq_bell_'+S.me.user_id,JSON.stringify(b.keys));}catch(_){}
+  b.fresh=false; bellPaint();
+}
+setInterval(()=>{ if(!document.hidden) bellLoad(); },300000);
+window.addEventListener('online',()=>bellLoad(true));
 (async()=>{ (await offUser())?boot():loginView(); })();
 </script>
 </body>
