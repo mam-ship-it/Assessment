@@ -164,6 +164,18 @@ main>.credit{padding-bottom:64px}
 .nt{border:1px solid var(--line);border-radius:var(--r);margin:.7em 0;overflow:hidden}
 .nt h4{margin:0;padding:.5em .8em;font-size:1em}
 .nt .it{display:flex;gap:.6em;align-items:center;padding:.55em .8em;border-top:1px solid var(--line)}
+
+/* ===== doctor-error fixer ===== */
+#deFab{position:fixed;bottom:14px;left:14px;z-index:40;border:0;background:#fff;border-radius:50%;width:84px;height:84px;padding:0;box-shadow:0 8px 24px #0b2c4a55,0 0 0 3px var(--gold);cursor:pointer}
+#deFab svg{width:100%;height:100%}#deFab .tip{position:absolute;bottom:88px;left:0;background:var(--red);color:#fff;font-weight:700;font-size:.8em;padding:.3em .8em;border-radius:14px;white-space:nowrap}
+.deHand{animation:deSlap 1.6s ease-in-out infinite;transform-origin:20px 78px}.deFace{animation:deShake 1.6s ease-in-out infinite;transform-origin:50px 55px}
+@keyframes deSlap{0%,55%,100%{transform:translate(0,0) rotate(0)}35%{transform:translate(18px,-26px) rotate(-30deg)}45%{transform:translate(26px,-30px) rotate(-38deg)}}
+@keyframes deShake{0%,38%,100%{transform:none}44%{transform:translateX(5px) rotate(5deg)}52%{transform:translateX(-3px) rotate(-3deg)}}
+.deBig{width:110px;height:110px;margin:0 auto;display:block}.deCard{border:1px solid var(--line);border-radius:12px;margin:.6em 0;padding:.7em .9em;background:#fff}
+.deCard.warn{border-color:var(--red);background:#fff4f3}.deCard .acts button{min-height:36px;padding:.2em .7em;font-size:.88em}
+.deTags{display:flex;gap:.4em;flex-wrap:wrap;margin:.4em 0}.deTags .chip{background:#fff3cd;color:#7a5a00}
+.deSheet{max-width:720px}.deStu{display:flex;gap:.5em;align-items:center;justify-content:space-between;padding:.35em 0;border-top:1px dashed var(--line)}
+.deTop{display:flex;align-items:center;gap:.3em;padding:.1em .7em .1em .3em;min-height:40px}.deTop svg{width:34px;height:34px;background:#fff;border-radius:50%;flex:none}.deTop span{font-weight:700;font-size:.85em;white-space:nowrap}@media(max-width:520px){.deTop span{display:none}.deTop{padding:.1em .3em}}
 </style></head>
 <body>
 <div id="app"></div>
@@ -198,9 +210,9 @@ function loginView(msg=''){
     if (error) $('#er').textContent='فشل تسجيل الدخول'; else boot();
   };
 }
-const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em;align-items:center">${bellHtml()}<button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
+const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em;align-items:center">${deBtn()}${bellHtml()}<button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
 function goHome(){ $('#md')?.remove(); S.me.role==='doctor'?home():staffView(S.tab||'sum'); }
-async function logout(){ await SB.auth.signOut(); S.me=null; loginView(); }
+async function logout(){ $('#deFab')?.remove(); $('#dem')?.remove(); await SB.auth.signOut(); S.me=null; loginView(); }
 
 async function boot(){
   const user=await offUser(); if(!user) return loginView();
@@ -464,7 +476,7 @@ function drawStaff(){
   const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['imp','استيراد الدرجات'],['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
   const kpi=`<div class="grid"><div class="card"><div class="muted">الطلاب</div><div class="big">${n}</div></div><div class="card"><div class="muted">المجموعات</div><div class="big">${grp.length}</div></div><div class="card"><div class="muted">الدكاترة</div><div class="big">${docs.filter(d=>d.role==='doctor').length}</div></div><div class="card"><div class="muted">تقييمات غير مكتملة</div><div class="big">${inc}</div></div></div>`;
   app.innerHTML=shell(`<h2>لوحة ${adm?'مدير النظام':'المنسق'}</h2>${kpi}<div class="seg" style="margin:.8em 0">${tabs}</div><div id="tb"></div>`,e(S.period?.name||''));
-  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab]();
+  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab](); deMount();
   const kg=document.querySelector('.grid'); if(kg) kg.querySelectorAll('.big').forEach((el,i)=>tw(el,'k'+i,+el.textContent||0));
 }
 /* ---------- live admin dashboard ---------- */
@@ -1288,6 +1300,71 @@ async function bellOpen(){
 setInterval(()=>{ if(!document.hidden) bellLoad(); },300000);
 window.addEventListener('online',()=>bellLoad(true));
 (async()=>{ (await offUser())?boot():loginView(); })();
+
+/* ===== نظام تصحيح أخطاء الدكاترة (مدير النظام) ===== */
+const DE_SVG=`<svg viewBox="0 0 100 100" aria-hidden="true"><g class="deFace"><circle cx="50" cy="52" r="30" fill="#ffd54a" stroke="#b8860b" stroke-width="3"/><path d="M36 42l8 6m0-6l-8 6M56 42l8 6m0-6l-8 6" stroke="#0b2c4a" stroke-width="3" stroke-linecap="round"/><ellipse cx="50" cy="66" rx="7" ry="5" fill="#b3362f"/><path d="M74 36q5 8 0 12" fill="#7ad0f0" stroke="#12a5b5"/></g><g class="deHand"><circle cx="20" cy="78" r="13" fill="#f4b183" stroke="#a0522d" stroke-width="3"/><path d="M13 74h14M13 80h14" stroke="#a0522d" stroke-width="2"/></g></svg>`;
+const DE_ERR=[['🔀','نوع الشيت غلط','سجّل Postnatal بدل Antenatal مثلاً'],['#️⃣','رقم الجلسة غلط','سجّل الجلسة 2 بدل 1'],['📅','الأسبوع غلط','أسبوع غير صحيح للجلسة'],['✅❌','حاضر/غائب بالخطأ','قلب حالة الطالب'],['👤','الجلسة باسم دكتور آخر','نقلها للدكتور الصحيح'],['🗑️','جلسة مكررة أو لمجموعة غلط','حذفها لإعادة التسجيل']];
+function deMount(){ $('#deFab')?.remove(); }
+function deBtn(){ return S.me?.role==='admin'?`<button id="deTop" class="deTop" onclick="deOpen()" aria-label="الدكتور أخطأ" title="الدكتور أخطأ">${DE_SVG}<span>الدكتور أخطأ</span></button>`:''; }
+function deOpen(){
+  $('#dem')?.remove(); const docs=(S.st?.docs||[]).filter(d=>d.role==='doctor');
+  const m=document.createElement('div'); m.className='modal'; m.id='dem'; m.onclick=ev=>{if(ev.target===m)m.remove();};
+  m.innerHTML=`<div class="sheet deSheet"><div style="display:flex;gap:1em;align-items:center">${DE_SVG.replace('<svg','<svg class="deBig" style="width:90px;height:90px;flex:none"')}<div><h2 style="margin:0">الدكتور أخطأ! 🤦</h2><div class="muted">اختر الدكتور ثم صحّح الخطأ بضغطة زر</div></div></div>
+  <label for="deD">الدكتور</label><select id="deD"><option value="">— اختر الدكتور —</option>${docs.map(d=>`<option value="${d.user_id}">${e(d.full_name)}</option>`).join('')}</select>
+  <div class="deTags">${DE_ERR.map(x=>`<span class="chip" title="${e(x[2])}">${x[0]} ${e(x[1])}</span>`).join('')}</div>
+  <div id="deB" class="muted">اختر دكتوراً لعرض جلساته في الفترة الحالية.</div><button style="margin-top:.8em" onclick="$('#dem').remove()">إغلاق</button></div>`;
+  document.body.appendChild(m); $('#deD').onchange=ev=>deLoad(ev.target.value);
+}
+const deTbl=l=>l?'lab_sessions':'clinical_sessions', deMsg=(t,c)=>{const x=$('#deM'); if(x){x.textContent=t;x.className='st '+(c||'');}};
+const deFixErr=m=>/duplicate|unique/i.test(m)?'يوجد بالفعل جلسة بنفس الرقم/النوع لهذه المجموعة - غيّر الرقم أولاً':/exceeds/.test(m)?'القيمة أكبر من المسموح (الأسابيع/الجلسات)':tr(m);
+async function deLoad(uid){
+  const B=$('#deB'); if(!uid){B.textContent='اختر دكتوراً لعرض جلساته في الفترة الحالية.';return;} if(!S.period){B.textContent='لا توجد فترة مفتوحة';return;}
+  B.textContent='جارٍ التحميل...'; const p=S.period.id;
+  try{ const [cs,ls]=await Promise.all([all('clinical_sessions','*',q=>q.eq('doctor_id',uid).eq('period_id',p).order('group_code').order('session_no')),all('lab_sessions','*',q=>q.eq('doctor_id',uid).eq('period_id',p).order('group_code').order('session_no'))]);
+    const ids=cs.map(x=>x.id), as=ids.length?await all('clinical_assessments','id,session_id,status',q=>q.in('session_id',ids)):[];
+    const cnt={}; as.forEach(a=>{const c=cnt[a.session_id]||(cnt[a.session_id]={p:0,a:0}); a.status==='present'?c.p++:c.a++;});
+    const gsz={}; S.st.stu.forEach(x=>gsz[x.group_code]=(gsz[x.group_code]||0)+1);
+    const dayKey={}; cs.forEach(x=>{const k=x.group_code+'|'+x.session_date; (dayKey[k]=dayKey[k]||[]).push(x);});
+    S.de={uid,cs,ls,cnt,gsz,dayKey}; deDraw();
+  }catch(er){B.textContent='فشل التحميل: '+er.message;}
+}
+function deDraw(){
+  const {cs,ls,cnt,gsz,dayKey}=S.de, B=$('#deB'); B.className='';
+  const card=(x,lab)=>{const c=cnt[x.id]||{p:0,a:0}, tot=c.p+c.a, fl=[];
+    if(!lab){ if((dayKey[x.group_code+'|'+x.session_date]||[]).length>1) fl.push('⚠ نفس المجموعة في نفس اليوم بأكثر من نوع - احتمال نوع شيت غلط');
+      if(tot&&!c.p) fl.push('⚠ كل الطلاب غياب - احتمال خطأ في الحالة'); if(tot&&gsz[x.group_code]&&tot<gsz[x.group_code]*.5) fl.push('⚠ سُجّل أقل من نصف المجموعة (متبقٍ '+(gsz[x.group_code]-tot)+')'); }
+    const ty=lab?'Lab':TN[x.training_type_code];
+    return `<div class="deCard${fl.length?' warn':''}"><b>${e(x.group_code)} — ${ty} — جلسة ${x.session_no} — أسبوع ${x.week_no}</b> <span class="muted">${x.session_date||''}${!lab?` · حاضر ${c.p} · غائب ${c.a}`:''}</span>${fl.map(f=>`<div class="muted" style="color:var(--red)">${f}</div>`).join('')}
+    <div class="acts">${lab?'':`<button onclick="deType(${x.id})">🔀 تغيير النوع</button>`}<button onclick="deNum(${x.id},${lab},'session_no')">#️⃣ رقم الجلسة</button><button onclick="deNum(${x.id},${lab},'week_no')">📅 الأسبوع</button><button onclick="deDoc(${x.id},${lab})">👤 نقل لدكتور</button>${lab?'':`<button onclick="deStu(${x.id})">✅❌ الطلاب</button>`}<button class="dng" onclick="deDel(${x.id},${lab})">🗑️ حذف</button></div><div id="deS${lab?'L':'C'}${x.id}"></div></div>`;};
+  B.innerHTML=`<div class="st" id="deM" role="status"></div>`+(cs.length+ls.length?cs.map(x=>card(x,0)).join('')+ls.map(x=>card(x,1)).join(''):'<div class="muted">لا توجد جلسات مسجلة لهذا الدكتور في الفترة الحالية ✓</div>');
+}
+async function deUpd(tbl,id,patch,ok){
+  const r=await withTO(SB.from(tbl).update(patch).eq('id',id).select('id'));
+  if(r.error){deMsg('فشل: '+deFixErr(r.error.message),'bad');return false;}
+  if(!r.data||!r.data.length){deMsg('لم يتم التعديل (صلاحيات)','bad');return false;}
+  deMsg(ok||'تم التعديل ✓','good'); return true;
+}
+async function deRef(){ const u=S.de.uid; await deLoad(u); deMsg('تم التعديل ✓','good'); staffView(S.tab,true); }
+async function deType(id){ const x=S.de.cs.find(y=>y.id===id), opts=TYPES.slice(0,3).filter(t=>t!==x.training_type_code);
+  const v=prompt('النوع الصحيح؟ اكتب واحداً من: '+opts.map(t=>TN[t]).join(' / ')); if(!v) return; const t=opts.find(o=>TN[o].toLowerCase()===v.trim().toLowerCase()); if(!t) return deMsg('نوع غير معروف','bad');
+  if(await deUpd('clinical_sessions',id,{training_type_code:t})) await deRef(); }
+async function deNum(id,lab,f){ const x=(lab?S.de.ls:S.de.cs).find(y=>y.id===id), v=+prompt((f==='week_no'?'الأسبوع':'رقم الجلسة')+' الصحيح؟',x[f]); if(!v||v<1||v===x[f]) return;
+  if(await deUpd(deTbl(lab),id,{[f]:v})) await deRef(); }
+async function deDoc(id,lab){ const docs=S.st.docs.filter(d=>d.role==='doctor'), v=prompt('اكتب اسم الدكتور الصحيح (جزء من الاسم يكفي):'); if(!v) return;
+  const m=docs.filter(d=>d.full_name.includes(v.trim())); if(m.length!==1) return deMsg(m.length?'أكثر من دكتور بنفس الاسم - اكتب الاسم أدق':'لا يوجد دكتور بهذا الاسم','bad');
+  if(confirm('نقل الجلسة إلى '+m[0].full_name+'؟')&&await deUpd(deTbl(lab),id,{doctor_id:m[0].user_id})) await deRef(); }
+async function deDel(id,lab){ const n=lab?0:(S.de.cnt[id]?.p||0)+(S.de.cnt[id]?.a||0);
+  if(!confirm('حذف هذه الجلسة'+(n?' مع '+n+' تقييم داخلها':'')+'؟ لا يمكن التراجع (يُسجَّل في سجل المراجعة).')) return;
+  const a=lab?await SB.from('lab_assessments').delete().eq('session_id',id):await SB.from('clinical_assessments').delete().eq('session_id',id); if(a.error) return deMsg('فشل: '+a.error.message,'bad');
+  const r=await SB.from(deTbl(lab)).delete().eq('id',id).select('id'); if(r.error||!r.data?.length) return deMsg('فشل الحذف: '+(r.error?.message||'صلاحيات'),'bad'); await deRef(); }
+async function deStu(id){ const box=$('#deSC'+id); if(box.innerHTML){box.innerHTML='';return;} box.textContent='جارٍ التحميل...';
+  const as=await all('clinical_assessments','*',q=>q.eq('session_id',id).order('student_code')), nm=Object.fromEntries(S.st.stu.map(x=>[x.student_code,x]));
+  as.sort((a,b)=>(nm[a.student_code]?.serial_no||0)-(nm[b.student_code]?.serial_no||0)); S.de.as=Object.fromEntries(as.map(a=>[a.id,a]));
+  box.innerHTML=as.map(a=>`<div class="deStu"><span>${nm[a.student_code]?.serial_no||''} ${e(nm[a.student_code]?.full_name||a.student_code)}</span><span><span class="chip ${a.status==='present'?'c':'a'}">${a.status==='present'?'حاضر':'غائب'}</span> <button style="min-height:34px;padding:.1em .6em" onclick="deFlip(${a.id},${id})">${a.status==='present'?'اجعله غائب':'اجعله حاضر'}</button></span></div>`).join('')||'<div class="muted">لا تقييمات</div>'; }
+async function deFlip(aid,sid){ const a=S.de.as[aid], pr=a.status==='absent', p=pr?{status:'present',attendance_score:num('clinical.attendance_max'),behavior_good:confirm('هل السلوك جيد؟ (موافق = جيد)'),sick_excuse:false,makeup_done:false,makeup_date:null}:{status:'absent',attendance_score:null,behavior_score:null,behavior_good:null,uniform_score:null,sick_excuse:false,makeup_done:false,makeup_date:null};
+  if(pr){ p.behavior_score=p.behavior_good?num('clinical.behavior_max'):0; p.uniform_score=confirm('هل اليونيفورم كامل؟ (موافق = كامل)')?num('clinical.uniform_max'):0; }
+  const r=await withTO(SB.from('clinical_assessments').update(p).eq('id',aid).eq('version',a.version).select('id')); if(r.error) return deMsg('فشل: '+tr(r.error.message),'bad'); if(!r.data?.length) return deMsg('تعدّل السجل من مستخدم آخر - أعد الفتح','bad');
+  const b=$('#deSC'+sid); b.innerHTML=''; await deRef(); await deStu(sid); }
 </script>
 </body>
 </html>
