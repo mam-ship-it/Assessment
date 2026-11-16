@@ -210,7 +210,7 @@ function loginView(msg=''){
     if (error) $('#er').textContent='فشل تسجيل الدخول'; else boot();
   };
 }
-const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em;align-items:center">${deBtn()}${bellHtml()}<button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
+const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em;align-items:center">${deBtn()}${attBtn()}${bellHtml()}<button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
 function goHome(){ $('#md')?.remove(); S.me.role==='doctor'?home():staffView(S.tab||'sum'); }
 async function logout(){ $('#deFab')?.remove(); $('#dem')?.remove(); await SB.auth.signOut(); S.me=null; loginView(); }
 
@@ -473,10 +473,10 @@ function drawStaff(){
   liveStart();
   const {grp,docs,asg,cl,lb,n}=S.st, tab=S.tab, adm=S.me.role==='admin';
   const inc=TYPES.reduce((a,t)=>a+rowsFor(t).filter(x=>!isDone(x)).length,0);
-  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['imp','استيراد الدرجات'],['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
+  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['att','توثيق الغيابات'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['imp','استيراد الدرجات'],['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
   const kpi=`<div class="grid"><div class="card"><div class="muted">الطلاب</div><div class="big">${n}</div></div><div class="card"><div class="muted">المجموعات</div><div class="big">${grp.length}</div></div><div class="card"><div class="muted">الدكاترة</div><div class="big">${docs.filter(d=>d.role==='doctor').length}</div></div><div class="card"><div class="muted">تقييمات غير مكتملة</div><div class="big">${inc}</div></div></div>`;
   app.innerHTML=shell(`<h2>لوحة ${adm?'مدير النظام':'المنسق'}</h2>${kpi}<div class="seg" style="margin:.8em 0">${tabs}</div><div id="tb"></div>`,e(S.period?.name||''));
-  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab](); deMount();
+  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,att:tabAtt,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab](); deMount();
   const kg=document.querySelector('.grid'); if(kg) kg.querySelectorAll('.big').forEach((el,i)=>tw(el,'k'+i,+el.textContent||0));
 }
 /* ---------- live admin dashboard ---------- */
@@ -1011,6 +1011,99 @@ async function exportAbs(){
   XLSX.utils.book_append_sheet(wb,ws2,'التنبيهات'); wb.Workbook={Views:[{RTL:true},{RTL:true}]};
   XLSX.writeFile(wb,`absence_${S.abs.F.g||'all'}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
+
+
+/* ---------- توثيق الغيابات: تبويب = كشف الحضور بالتواريخ (P/A) + دكتور كل جلسة + تواريخ متوقعة ---------- */
+async function attBuild(g){
+  const p=S.period?.id; if(!p) throw new Error('لا توجد فترة تدريبية مفتوحة');
+  const [cs,ls]=await Promise.all([
+    all('clinical_sessions','id,group_code,training_type_code,session_no,week_no,session_date,created_at,doctor_id',q=>q.eq('period_id',p).eq('group_code',g).order('id')),
+    all('lab_sessions','id,group_code,session_no,week_no,session_date,created_at,doctor_id',q=>q.eq('period_id',p).eq('group_code',g).order('id'))]);
+  const sess=[...cs.map(x=>({...x,lab:false,t:x.training_type_code})),...ls.map(x=>({...x,lab:true,t:'lab'}))]
+    .map(x=>({...x,d:x.session_date||(x.created_at||'').slice(0,10)}))
+    .sort((a,b)=>String(a.d).localeCompare(String(b.d))||TYPES.indexOf(a.t)-TYPES.indexOf(b.t)||a.session_no-b.session_no);
+  const [ca,la]=await Promise.all([
+    cs.length?all('clinical_assessments','id,session_id,student_code,status',q=>q.in('session_id',cs.map(x=>x.id)).order('id')):[],
+    ls.length?all('lab_assessments','id,session_id,student_code,status',q=>q.in('session_id',ls.map(x=>x.id)).order('id')):[]]);
+  const A={}; ca.forEach(a=>A['c'+a.session_id+'|'+a.student_code]=a.status); la.forEach(a=>A['l'+a.session_id+'|'+a.student_code]=a.status);
+  const dn=Object.fromEntries(S.st.docs.map(d=>[d.user_id,d.full_name]));
+  const stu=S.st.stu.filter(x=>x.group_code===g).sort((a,b)=>a.serial_no-b.serial_no);
+  /* تواريخ متوقعة: نفس يوم الأسبوع بعد آخر جلسة مسجّلة حتى يكتمل عدد جلسات التيرم (تُترك فارغة) */
+  const planned=Math.max(3*num('clinical.sessions_per_type')+num('lab.sessions'),S.period.weeks||0), exp=[];
+  if(sess.length){ const ld=new Date(sess[sess.length-1].d+'T00:00:00'); if(!isNaN(ld)) for(let k=1;sess.length+exp.length<planned;k++) exp.push(new Date(ld.getTime()+k*7*864e5)); }
+  const cols=sess.map(x=>({...x,label:(x.lab?'Lab':TN[x.t])+' - جلسة '+x.session_no,doc:docNm(dn[x.doctor_id]||'غير معروف'),st:s=>A[(x.lab?'l':'c')+x.id+'|'+s.student_code]||''}));
+  const tot={}; stu.forEach(s=>{let P=0,Ab=0; cols.forEach(c=>{const v=c.st(s); if(v==='present')P++; else if(v==='absent')Ab++;}); tot[s.student_code]={P,A:Ab};});
+  return {g,cols,exp,stu,tot,at:Date.now()};
+}
+const fmtD=d=>{const x=d instanceof Date?d:new Date(d+'T00:00:00'); return isNaN(x)?String(d||''):x.toLocaleDateString('en-CA');};
+function tabAtt(){
+  const F=S.att||(S.att={g:''});
+  $('#tb').innerHTML=`<style>@media print{#attA table{font-size:10px}#attA th,#attA td{padding:.25em .35em}.attT{display:block!important}}.attT{font-weight:700;font-size:1.05em;margin:.4em 0}.attP{background:#d9f2e3;color:#1f7a4d;font-weight:700;text-align:center}.attA{background:#f8d7da;color:#b3362f;font-weight:700;text-align:center}.attX{background:#f1f4f6!important;color:#7a8b93}.attC{text-align:center}</style>
+  <div class="bar2"><div><label for="attG">الجروب</label><select id="attG"><option value="">— اختر الجروب —</option>${S.st.grp.map(g=>`<option ${F.g===g.code?'selected':''}>${e(g.code)}</option>`).join('')}</select></div></div>
+  <div class="acts"><button class="pri" id="attX" onclick="attExcel()" disabled>تحميل شيت Excel</button><button id="attPr" onclick="window.print()" disabled>طباعة / PDF</button><button id="attRf" onclick="attLoad(true)" disabled>تحديث</button></div>
+  <div class="st ${F.g?'':'bad'}" id="attMsg" role="status">${F.g?'':'اختر الجروب'}</div><div id="attA"></div>`;
+  $('#attG').onchange=ev=>{F.g=ev.target.value;F.d=null;attLoad();};
+  if(F.g) attLoad();
+}
+async function attLoad(force){
+  const F=S.att, m=$('#attMsg'); if(!$('#attA')) return;
+  ['attX','attPr','attRf'].forEach(i=>{const b=$('#'+i); if(b) b.disabled=true;});
+  if(!F.g){ $('#attA').innerHTML=''; m.textContent='اختر الجروب'; m.className='st bad'; return; }
+  m.textContent='جارٍ التحميل...'; m.className='st';
+  const g=F.g; try{ if(force||!F.d||F.d.g!==g) F.d=await attBuild(g); }catch(er){ if(F.g===g&&$('#attMsg')){ $('#attMsg').textContent='فشل: '+(er.message||er); $('#attMsg').className='st bad'; } return; }
+  if(F.g!==g||!$('#attA')) return;
+  attDraw();
+}
+function attDraw(){
+  const d=S.att.d, m=$('#attMsg'); m.textContent=''; m.className='st';
+  ['attX','attPr','attRf'].forEach(i=>{const b=$('#'+i); if(b) b.disabled=false;});
+  if(!d.cols.length){ $('#attA').innerHTML='<div class="card">لا توجد جلسات مسجّلة لهذه المجموعة في الفترة الحالية</div>'; $('#attX').disabled=true; $('#attPr').disabled=true; return; }
+  const nc=d.cols.length, ne=d.exp.length;
+  const head=`<tr><th rowspan="3">م</th><th rowspan="3">الاسم</th>${d.cols.map(c=>`<th class="attC">${e(c.label)}</th>`).join('')}${d.exp.map(()=>'<th class="attC attX" style="background:#e9eef1!important;color:#5d7780">متوقع</th>').join('')}<th rowspan="3" class="attC">حضور</th><th rowspan="3" class="attC">غياب</th></tr>
+   <tr>${d.cols.map(c=>`<th class="attC" style="font-weight:600">${e(c.doc)}</th>`).join('')}${d.exp.map(()=>'<th class="attX"></th>').join('')}</tr>
+   <tr>${d.cols.map(c=>`<th class="attC" dir="ltr">${e(fmtD(c.d))}</th>`).join('')}${d.exp.map(x=>`<th class="attC attX" dir="ltr" style="background:#e9eef1!important;color:#5d7780">${e(fmtD(x))}</th>`).join('')}</tr>`;
+  const body=d.stu.map(s=>`<tr><td>${s.serial_no}</td><td>${e(s.full_name)}</td>${d.cols.map(c=>{const v=c.st(s);return v==='present'?'<td class="attP">P</td>':v==='absent'?'<td class="attA">A</td>':'<td></td>';}).join('')}${d.exp.map(()=>'<td class="attX"></td>').join('')}<td class="attC"><b>${d.tot[s.student_code].P}</b></td><td class="attC"><b>${d.tot[s.student_code].A}</b></td></tr>`).join('');
+  const cnt=v=>d.cols.map(c=>`<td class="attC"><b>${d.stu.filter(s=>c.st(s)===v).length}</b></td>`).join('')+d.exp.map(()=>'<td class="attX"></td>').join('');
+  const foot=`<tr><td colspan="2"><b>عدد الحضور (P)</b></td>${cnt('present')}<td colspan="2"></td></tr><tr><td colspan="2"><b>عدد الغياب (A)</b></td>${cnt('absent')}<td colspan="2"></td></tr>`;
+  $('#attA').innerHTML=`<div class="attT">كشف الحضور والغياب — مجموعة ${e(d.g)} — ${e(S.period?.name||'')} <span class="muted">(${d.stu.length} طالب - ${nc} جلسة مسجّلة${ne?' - '+ne+' متوقعة':''})</span></div><div class="tw"><table><thead>${head}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div><div class="muted">P = حضر · A = غاب · الأعمدة الرمادية «متوقع» تواريخ تقديرية لباقي جلسات التيرم (نفس يوم الأسبوع) وتُترك فارغة.</div>`;
+}
+async function attExcel(){
+  const F=S.att, d=F&&F.d; if(!d||!d.cols.length) return; const btn=$('#attX'), m=$('#attMsg'); btn.disabled=true; m.textContent='جارٍ تجهيز الملف...'; m.className='st';
+  try{
+    if(!window.ExcelJS) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
+    const {g,cols,exp,stu,tot}=d, nS=cols.length+exp.length, nC=2+nS+2;
+    const wb=new ExcelJS.Workbook(), ws=wb.addWorksheet(g,{views:[{rightToLeft:true,state:'frozen',xSplit:2,ySplit:4}],pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+    const thin={style:'thin'}, bd={top:thin,left:thin,bottom:thin,right:thin}, ctr={horizontal:'center',vertical:'middle',wrapText:true};
+    const fl=c=>({type:'pattern',pattern:'solid',fgColor:{argb:c}}), hf=fl('FFD9E2F3'), gf=fl('FFEEF1F3');
+    ws.columns=[{width:6},{width:38},...Array.from({length:nS},()=>({width:16})),{width:9},{width:9}];
+    ws.mergeCells(1,1,1,nC); const t=ws.getCell(1,1); t.value=`كشف الحضور والغياب - مجموعة ${g} - ${S.period.name||''}`; t.font={name:'Arial',size:14,bold:true}; t.alignment=ctr; ws.getRow(1).height=28;
+    ws.getCell(2,2).value='النوع / الجلسة'; ws.getCell(3,2).value='الدكتور'; ws.getCell(4,1).value='م'; ws.getCell(4,2).value='الاسم / التاريخ';
+    cols.forEach((c,i)=>{ const k=3+i; ws.getCell(2,k).value=c.label; ws.getCell(3,k).value=c.doc; const x=ws.getCell(4,k); const dt=new Date(c.d+'T00:00:00'); if(isNaN(dt)) x.value=c.d; else {x.value=dt;x.numFmt='yyyy-mm-dd';} });
+    exp.forEach((dt,i)=>{ const k=3+cols.length+i; ws.getCell(2,k).value='متوقع'; const x=ws.getCell(4,k); x.value=dt; x.numFmt='yyyy-mm-dd'; });
+    ws.getCell(4,nC-1).value='حضور'; ws.getCell(4,nC).value='غياب';
+    for(let r=2;r<=4;r++) for(let c=1;c<=nC;c++){ const x=ws.getCell(r,c); x.border=bd; x.alignment=ctr; x.fill=(c>2&&c<=2+nS&&c>2+cols.length)?gf:hf; x.font={name:'Arial',size:r===3?10:11,bold:true}; }
+    ws.getRow(2).height=24; ws.getRow(3).height=34; ws.getRow(4).height=22;
+    stu.forEach((s,i)=>{
+      const r=5+i; ws.getCell(r,1).value=s.serial_no; ws.getCell(r,2).value=s.full_name;
+      cols.forEach((c,j)=>{ const v=c.st(s), x=ws.getCell(r,3+j); x.value=v==='present'?'P':v==='absent'?'A':''; if(v==='present') x.fill=fl('FFD9F2E3'); else if(v==='absent') x.fill=fl('FFF8D7DA'); });
+      for(let j=cols.length;j<nS;j++) ws.getCell(r,3+j).fill=gf;
+      const L1=ws.getColumn(3).letter, L2=ws.getColumn(2+nS).letter;
+      ws.getCell(r,nC-1).value={formula:`COUNTIF(${L1}${r}:${L2}${r},"P")`,result:tot[s.student_code].P}; ws.getCell(r,nC).value={formula:`COUNTIF(${L1}${r}:${L2}${r},"A")`,result:tot[s.student_code].A};
+      for(let c=1;c<=nC;c++){ const x=ws.getCell(r,c); x.border=bd; x.alignment=c===2?{horizontal:'right',vertical:'middle'}:ctr; x.font=x.value==='A'?{name:'Arial',size:11,bold:true,color:{argb:'FFB3362F'}}:{name:'Arial',size:11}; }
+      ws.getRow(r).height=18;
+    });
+    const sr=5+stu.length; ws.getCell(sr,2).value='عدد الحضور (P)'; ws.getCell(sr+1,2).value='عدد الغياب (A)';
+    for(let j=0;j<nS;j++){ const L=ws.getColumn(3+j).letter; ws.getCell(sr,3+j).value={formula:`COUNTIF(${L}5:${L}${sr-1},"P")`}; ws.getCell(sr+1,3+j).value={formula:`COUNTIF(${L}5:${L}${sr-1},"A")`}; }
+    for(let r=sr;r<=sr+1;r++) for(let c=1;c<=nC;c++){ const x=ws.getCell(r,c); x.border=bd; x.fill=hf; x.alignment=ctr; x.font={name:'Arial',size:11,bold:true}; }
+    const buf=await wb.xlsx.writeBuffer(), a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    a.download=`attendance_${g}_${new Date().toISOString().slice(0,10)}.xlsx`; a.click();
+    m.textContent='تم تحميل الشيت ✓'; m.className='st good';
+  }catch(er){ m.textContent='فشل التصدير: '+(er.message||er); m.className='st bad'; }
+  btn.disabled=false;
+}
+function attBtn(){ return S.me&&S.me.role!=='doctor'?`<button class="deTop" id="attTop" onclick="attOpen()" aria-label="توثيق الغيابات" title="توثيق الغيابات"><span style="font-size:1.3em">📋</span><span>توثيق الغيابات</span></button>`:''; }
+function attOpen(){ S.att=S.att||{g:''}; S.att.g=''; S.att.d=null; showTab('att'); }
 
 /* ---------- export in the department's official template layout ---------- */
 const loadJs=u=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=no;document.head.appendChild(s);});
