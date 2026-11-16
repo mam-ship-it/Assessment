@@ -210,7 +210,7 @@ function loginView(msg=''){
     if (error) $('#er').textContent='فشل تسجيل الدخول'; else boot();
   };
 }
-const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em;align-items:center">${deBtn()}${attBtn()}${bellHtml()}<button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
+const shell = (inner, sub='') => `<div class="top"><div class="brand"><img class="lg" src="${LOGO}" alt="شعار المعهد الفني للتمريض"><div><b>${e(S.me.full_name)}</b><div class="muted" style="color:#cfe6ec">${sub||INST}</div></div></div><div style="display:flex;gap:.4em;align-items:center">${deBtn()}${attBtn()}${trkBtn()}${bellHtml()}<button onclick="goHome()">الرئيسية</button><button onclick="logout()">خروج</button></div></div><main><div class="phd"><img src="${LOGO}" alt=""><div><b>${INST}</b><div>تقييم التدريب العملي - تمريض الأمومة</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div></div>${inner}${crHTML()}</main>`;
 function goHome(){ $('#md')?.remove(); S.me.role==='doctor'?home():staffView(S.tab||'sum'); }
 async function logout(){ $('#deFab')?.remove(); $('#dem')?.remove(); await SB.auth.signOut(); S.me=null; loginView(); }
 
@@ -473,10 +473,10 @@ function drawStaff(){
   liveStart();
   const {grp,docs,asg,cl,lb,n}=S.st, tab=S.tab, adm=S.me.role==='admin';
   const inc=TYPES.reduce((a,t)=>a+rowsFor(t).filter(x=>!isDone(x)).length,0);
-  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['att','توثيق الغيابات'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['imp','استيراد الدرجات'],['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
+  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['att','توثيق الغيابات'],['trk','متابعة الدكاترة'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['imp','استيراد الدرجات'],['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
   const kpi=`<div class="grid"><div class="card"><div class="muted">الطلاب</div><div class="big">${n}</div></div><div class="card"><div class="muted">المجموعات</div><div class="big">${grp.length}</div></div><div class="card"><div class="muted">الدكاترة</div><div class="big">${docs.filter(d=>d.role==='doctor').length}</div></div><div class="card"><div class="muted">تقييمات غير مكتملة</div><div class="big">${inc}</div></div></div>`;
   app.innerHTML=shell(`<h2>لوحة ${adm?'مدير النظام':'المنسق'}</h2>${kpi}<div class="seg" style="margin:.8em 0">${tabs}</div><div id="tb"></div>`,e(S.period?.name||''));
-  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,att:tabAtt,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab](); deMount();
+  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,att:tabAtt,trk:tabTrk,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab](); deMount();
   const kg=document.querySelector('.grid'); if(kg) kg.querySelectorAll('.big').forEach((el,i)=>tw(el,'k'+i,+el.textContent||0));
 }
 /* ---------- live admin dashboard ---------- */
@@ -1103,7 +1103,68 @@ async function attExcel(){
   btn.disabled=false;
 }
 function attBtn(){ return S.me&&S.me.role!=='doctor'?`<button class="deTop" id="attTop" onclick="attOpen()" aria-label="توثيق الغيابات" title="توثيق الغيابات"><span style="font-size:1.3em">📋</span><span>توثيق الغيابات</span></button>`:''; }
+function trkBtn(){ return S.me&&S.me.role!=='doctor'?`<button class="deTop" id="trkTop" onclick="showTab('trk')" aria-label="نواقص الدكاترة" title="نواقص الدكاترة"><span style="font-size:1.3em">🩺</span><span>نواقص الدكاترة</span></button>`:''; }
 function attOpen(){ S.att=S.att||{g:''}; S.att.g=''; S.att.d=null; showTab('att'); }
+
+
+/* ---------- متابعة الدكاترة: مين لسه عليه نواقص (جلسات / طلاب / شيتات / كويز) ---------- */
+async function trkBuild(){
+  const p=S.period?.id; if(!p) throw new Error('لا توجد فترة تدريبية مفتوحة');
+  const [cs,ls]=await Promise.all([all('clinical_sessions','id,group_code,training_type_code,session_no,doctor_id',q=>q.eq('period_id',p).order('id')),all('lab_sessions','id,group_code,session_no,doctor_id',q=>q.eq('period_id',p).order('id'))]);
+  const [ca,la]=await Promise.all([cs.length?all('clinical_assessments','id,session_id,student_code',q=>q.in('session_id',cs.map(x=>x.id)).order('id')):[],ls.length?all('lab_assessments','id,session_id,student_code',q=>q.in('session_id',ls.map(x=>x.id)).order('id')):[]]);
+  const done=new Set(); ca.forEach(a=>done.add('c'+a.session_id+'|'+a.student_code)); la.forEach(a=>done.add('l'+a.session_id+'|'+a.student_code));
+  const sessAll=[...cs.map(x=>({...x,lab:false,t:x.training_type_code})),...ls.map(x=>({...x,lab:true,t:'lab'}))];
+  const stuG={}; S.st.stu.forEach(x=>(stuG[x.group_code]||(stuG[x.group_code]=[])).push(x));
+    const out=[];
+  S.st.docs.filter(d=>d.role==='doctor').forEach(d=>{
+    const it={doc:d,pt:[],sh:[],qz:[]};
+    sessAll.filter(x=>x.doctor_id===d.user_id).forEach(x=>{
+      const miss=(stuG[x.group_code]||[]).filter(s=>!done.has((x.lab?'l':'c')+x.id+'|'+s.student_code)).sort((a,b)=>a.serial_no-b.serial_no);
+      if(miss.length) it.pt.push({g:x.group_code,t:x.t,n:x.session_no,names:miss.map(s=>s.serial_no+' '+s.full_name)});
+    });
+    const cg=new Set(sessAll.filter(x=>x.doctor_id===d.user_id&&!x.lab).map(x=>x.group_code+'|'+x.t));
+    cg.forEach(k=>{ const [g,t]=k.split('|'); const m=S.st.cl.filter(r=>r.group_code===g&&r.training_type_code===t&&!r.absent_all&&(r.sheet_score_15==null||r.sheet_score_15===''));
+      if(m.length) it.sh.push({g,t,names:m.map(r=>r.serial_no+' '+r.full_name)}); });
+    new Set(sessAll.filter(x=>x.doctor_id===d.user_id&&x.lab).map(x=>x.group_code)).forEach(g=>{
+      const m=S.st.lb.filter(r=>r.group_code===g&&!r.lab_absent&&(r.quiz1_10==null||r.quiz1_10===''||r.quiz2_10==null||r.quiz2_10===''));
+      if(m.length) it.qz.push({g,t:'lab',names:m.map(r=>r.serial_no+' '+r.full_name+' ('+[(r.quiz1_10==null||r.quiz1_10==='')?'Quiz1':'',(r.quiz2_10==null||r.quiz2_10==='')?'Quiz2':''].filter(Boolean).join('+')+')')}); });
+    it.cn={pt:it.pt.reduce((a,x)=>a+x.names.length,0),sh:it.sh.reduce((a,x)=>a+x.names.length,0),qz:it.qz.reduce((a,x)=>a+x.names.length,0)};
+    it.tot=it.cn.pt+it.cn.sh+it.cn.qz; it.gs=[...new Set([...it.pt,...it.sh,...it.qz].map(i=>i.g))].sort(nat); out.push(it);
+  });
+  return out.sort((a,b)=>b.tot-a.tot||a.doc.full_name.localeCompare(b.doc.full_name,'ar'));
+}
+async function tabTrk(){
+  const F=S.trk||(S.trk={only:true});
+  $('#tb').innerHTML='<p>جارٍ التحميل...</p>';
+  try{ F.d=await trkBuild(); }catch(er){ $('#tb').innerHTML='فشل: '+e(er.message||er); return; }
+  trkDraw();
+}
+const trkTy=t=>t==='lab'?'Lab':(TN[t]||t);
+function trkDraw(){
+  const F=S.trk, D=F.d, list=D.filter(x=>!F.only||x.tot>0), bad=D.filter(x=>x.tot>0).length;
+  const sum=D.reduce((a,x)=>({pt:a.pt+x.cn.pt,sh:a.sh+x.cn.sh,qz:a.qz+x.cn.qz}),{pt:0,sh:0,qz:0});
+  const det=(title,arr,f)=>arr.length?`<details open><summary>${title} (${arr.length})</summary>${arr.map(f).join('')}</details>`:'';
+  const cards=list.filter(x=>x.tot>0).map(x=>`<div class="card" style="margin:.7em 0"><b>${e(x.doc.full_name)}</b> <span class="chip a">${x.tot} ناقص</span> ${x.gs.map(g=>`<span class="chip">${e(g)}</span>`).join(' ')}${x.doc.active?'':' <span class="chip">موقوف</span>'}
+   ${det('طلاب لم يُسجَّل حضورهم/غيابهم',x.pt,i=>`<div class="tdi"><b>${trkTy(i.t)} — مجموعة ${e(i.g)} — جلسة ${i.n}</b> (${i.names.length}): <span class="muted" style="display:inline">${i.names.map(e).join(' - ')}</span></div>`)}
+   ${det('درجات شيت ناقصة',x.sh,i=>`<div class="tdi"><b>${trkTy(i.t)} — مجموعة ${e(i.g)}</b> (${i.names.length}): <span class="muted" style="display:inline">${i.names.map(e).join(' - ')}</span></div>`)}
+   ${det('درجات Quiz ناقصة',x.qz,i=>`<div class="tdi"><b>Lab — مجموعة ${e(i.g)}</b> (${i.names.length}): <span class="muted" style="display:inline">${i.names.map(e).join(' - ')}</span></div>`)}</div>`).join('');
+  $('#tb').innerHTML=`<div class="acts"><label class="gc" style="margin:0"><input type="checkbox" id="trkO" ${F.only?'checked':''}> إظهار من عليهم نواقص فقط</label><button class="pri" onclick="trkExcel()">تصدير Excel</button><button onclick="window.print()">طباعة / PDF</button><button onclick="tabTrk()">تحديث</button></div>
+  <div class="sum"><b>${bad}</b> دكتور عليه نواقص من ${D.length} — طلاب غير مسجّلين: <b>${sum.pt}</b> · شيتات ناقصة: <b>${sum.sh}</b> · Quiz ناقص: <b>${sum.qz}</b></div>
+  <div class="tw"><table><thead><tr><th>الدكتور</th><th>طلاب غير مسجّلين</th><th>شيتات ناقصة</th><th>Quiz ناقص</th><th>المجموعات الناقصة</th><th>الحالة</th></tr></thead><tbody>${list.map(x=>`<tr><td>${e(x.doc.full_name)}</td><td>${x.cn.pt}</td><td>${x.cn.sh}</td><td>${x.cn.qz}</td><td>${x.gs.map(g=>`<span class="chip">${e(g)}</span>`).join(' ')||'-'}</td><td>${x.tot?'<span class="chip a">ناقص</span>':'<span class="chip c">مكتمل</span>'}</td></tr>`).join('')||'<tr><td colspan="7">كل الدكاترة مكتملون ✓</td></tr>'}</tbody></table></div>
+  ${cards}<div class="muted">الطلاب والشيتات والكويز محسوبة على الدكتور الذي سجّل الجلسة.</div>`;
+  $('#trkO').onchange=ev=>{F.only=ev.target.checked;trkDraw();};
+}
+async function trkExcel(){
+  if(!window.XLSX) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  const rows=[['الدكتور','البند','النوع','المجموعة','الجلسة','العدد','التفاصيل']];
+  S.trk.d.forEach(x=>{const n=x.doc.full_name;
+    x.pt.forEach(i=>rows.push([n,'طلاب غير مسجّلين',trkTy(i.t),i.g,i.n,i.names.length,i.names.join(' - ')]));
+    x.sh.forEach(i=>rows.push([n,'شيت ناقص',trkTy(i.t),i.g,'',i.names.length,i.names.join(' - ')]));
+    x.qz.forEach(i=>rows.push([n,'Quiz ناقص','Lab',i.g,'',i.names.length,i.names.join(' - ')]));});
+  const ws=XLSX.utils.aoa_to_sheet(rows), wb=XLSX.utils.book_new(); ws['!cols']=[28,18,12,10,8,8,80].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'متابعة الدكاترة'); wb.Workbook={Views:[{RTL:true}]};
+  XLSX.writeFile(wb,`doctors_followup_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
 
 /* ---------- export in the department's official template layout ---------- */
 const loadJs=u=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=no;document.head.appendChild(s);});
