@@ -176,8 +176,77 @@ main>.credit{padding-bottom:64px}
 .deTags{display:flex;gap:.4em;flex-wrap:wrap;margin:.4em 0}.deTags .chip{background:#fff3cd;color:#7a5a00}
 .deSheet{max-width:720px}.deStu{display:flex;gap:.5em;align-items:center;justify-content:space-between;padding:.35em 0;border-top:1px dashed var(--line)}
 .deTop{display:flex;align-items:center;gap:.3em;padding:.1em .7em .1em .3em;min-height:40px}.deTop svg{width:34px;height:34px;background:#fff;border-radius:50%;flex:none}.deTop span{font-weight:700;font-size:.85em;white-space:nowrap}@media(max-width:520px){.deTop span{display:none}.deTop{padding:.1em .3em}}
-</style></head>
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<style id="cdStyle">
+/* ===== futuristic shutdown countdown ===== */
+#cdBar{position:relative;z-index:7;display:flex;align-items:center;justify-content:center;gap:.9em;flex-wrap:wrap;padding:.5em 1em;cursor:pointer;color:#dffbff;font-weight:700;font-size:.95em;background:linear-gradient(90deg,#050b1f,#0a1f45 50%,#050b1f);border-bottom:1px solid #00e5ff88;box-shadow:0 0 18px #00e5ff33 inset;overflow:hidden}
+#cdBar::before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 40%,#00e5ff33 50%,transparent 60%);background-size:250% 100%;animation:cdSweep 3.5s linear infinite}
+#cdBar>*{position:relative}
+#cdBar .dot{width:9px;height:9px;border-radius:50%;background:#ff3d71;box-shadow:0 0 10px #ff3d71;animation:cdPulse 1.2s infinite}
+#cdBar .t{font-family:Orbitron,Cairo,monospace;letter-spacing:1.5px;color:#00e5ff;text-shadow:0 0 8px #00e5ff;direction:ltr;unicode-bidi:isolate}
+#cdBar .more{font-size:.8em;padding:.1em .8em;border:1px solid #00e5ff88;border-radius:20px;color:#9ff3ff}
+#cdMod{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;padding:14px;background:radial-gradient(ellipse at 50% 30%,#0a2a66cc,#020510f2);backdrop-filter:blur(6px);overflow:auto}
+#cdMod.on{display:flex;animation:cdIn .5s ease}
+.cdBox{position:relative;width:100%;max-width:760px;margin:auto;padding:28px 22px 24px;border-radius:22px;color:#e6fbff;text-align:center;background:linear-gradient(160deg,#071634ee,#0a1030f2);border:1px solid #00e5ff66;box-shadow:0 0 0 1px #7c4dff44,0 0 50px #00e5ff40,0 0 120px #7c4dff30;overflow:hidden;isolation:isolate}
+.cdBox::before{content:"";position:absolute;inset:0;z-index:-1;background-image:linear-gradient(#00e5ff14 1px,transparent 1px),linear-gradient(90deg,#00e5ff14 1px,transparent 1px);background-size:34px 34px;mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%);-webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%)}
+.cdBox::after{content:"";position:absolute;left:0;right:0;height:90px;top:-90px;z-index:-1;background:linear-gradient(180deg,transparent,#00e5ff2e,transparent);animation:cdScan 5s linear infinite}
+.cdBox i.c{position:absolute;width:22px;height:22px;border:2px solid #00e5ff;opacity:.9}
+.cdBox i.c1{top:10px;right:10px;border-left:0;border-bottom:0;border-radius:0 8px 0 0}
+.cdBox i.c2{top:10px;left:10px;border-right:0;border-bottom:0;border-radius:8px 0 0 0}
+.cdBox i.c3{bottom:10px;right:10px;border-left:0;border-top:0;border-radius:0 0 8px 0}
+.cdBox i.c4{bottom:10px;left:10px;border-right:0;border-top:0;border-radius:0 0 0 8px}
+.cdTag{display:inline-flex;align-items:center;gap:.5em;padding:.25em 1em;border-radius:20px;font-size:.85em;font-weight:700;color:#ff8fab;background:#ff3d7120;border:1px solid #ff3d7188}
+.cdTag .dot{width:8px;height:8px;border-radius:50%;background:#ff3d71;box-shadow:0 0 10px #ff3d71;animation:cdPulse 1.2s infinite}
+.cdBox h2{margin:.55em 0 .15em;font-size:clamp(1.35em,4.6vw,2em);font-weight:700;background:linear-gradient(90deg,#00e5ff,#a78bfa,#00e5ff);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:cdFlow 5s linear infinite}
+.cdBox p{margin:.2em auto;max-width:560px;color:#b8d6e6;line-height:1.9;font-size:.98em}
+.cdDate{display:inline-block;margin:.5em 0 1em;padding:.3em 1.1em;border-radius:12px;font-weight:700;color:#ffe08a;background:#ffc10714;border:1px solid #ffc10766;text-shadow:0 0 10px #ffc10788}
+.cdGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(8px,2vw,18px);direction:ltr;margin:.4em auto 1.1em;max-width:640px}
+.cdU{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.cdU svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.cdU .tr{fill:#0a1a3a99;stroke:#12305f;stroke-width:5}
+.cdU .pg{fill:none;stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 6px currentColor)}
+.cdU:nth-child(1) .pg{stroke:#00e5ff;color:#00e5ff}.cdU:nth-child(2) .pg{stroke:#7c4dff;color:#7c4dff}
+.cdU:nth-child(3) .pg{stroke:#00ffa3;color:#00ffa3}.cdU:nth-child(4) .pg{stroke:#ff3d9a;color:#ff3d9a}
+.cdU b{font-family:Orbitron,monospace;font-weight:900;font-size:clamp(1.5em,7vw,2.9em);line-height:1;color:#fff;text-shadow:0 0 14px #00e5ffaa;font-variant-numeric:tabular-nums}
+.cdU b.tick{animation:cdTick .35s ease}
+.cdU span{margin-top:.35em;font-size:clamp(.7em,2.6vw,.95em);color:#8fb8d0;font-weight:700}
+.cdBar2{height:6px;border-radius:6px;background:#0d2347;overflow:hidden;max-width:640px;margin:0 auto .3em}
+.cdBar2 i{display:block;height:100%;width:0;background:linear-gradient(90deg,#00e5ff,#7c4dff,#ff3d9a);box-shadow:0 0 12px #00e5ff;transition:width 1s}
+.cdSm{font-size:.78em;color:#6f93aa;margin-bottom:1em}
+.cdBox button.cdX{min-height:46px;padding:.5em 2.2em;font-weight:700;color:#031225;background:linear-gradient(135deg,#00e5ff,#7c4dff);border:0;border-radius:14px;box-shadow:0 0 22px #00e5ff77}
+.cdBox button.cdX:hover{box-shadow:0 0 34px #00e5ffbb}
+#cdMod.done .cdGrid,#cdMod.done .cdBar2,#cdMod.done .cdSm{display:none}
+#cdMod.done .cdTag{color:#ff8fab}
+@keyframes cdSweep{to{background-position:-150% 0}}
+@keyframes cdPulse{50%{opacity:.25;transform:scale(.7)}}
+@keyframes cdScan{to{top:110%}}
+@keyframes cdFlow{to{background-position:-200% 0}}
+@keyframes cdIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+@keyframes cdTick{0%{transform:translateY(-6px);opacity:.3}100%{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){#cdBar::before,.cdBox::after,.cdBox h2,#cdBar .dot,.cdTag .dot,#cdMod.on,.cdU b.tick{animation:none!important}}
+</style>
+</head>
 <body>
+
+<div id="cdBar" role="button" tabindex="0" aria-label="إعلان العد التنازلي لغلق السيستم"><span class="dot"></span><span>العد التنازلي لغلق السيستم</span><span class="t" id="cdMini">--</span><span class="more">التفاصيل</span></div>
+<div id="cdMod" role="dialog" aria-modal="true" aria-labelledby="cdTtl">
+ <div class="cdBox"><i class="c c1"></i><i class="c c2"></i><i class="c c3"></i><i class="c c4"></i>
+  <div class="cdTag"><span class="dot"></span>إعلان هام</div>
+  <h2 id="cdTtl">بدأ العد التنازلي لغلق السيستم</h2>
+  <p id="cdMsg">سيتم غلق السيستم نهائيًا في الموعد المحدد أدناه، برجاء استكمال جميع الإجراءات وإدخال الدرجات والبيانات المطلوبة قبل انتهاء العد التنازلي.</p>
+  <div class="cdDate">📅 الإثنين 1 فبراير 2027</div>
+  <div class="cdGrid">
+   <div class="cdU"><svg viewBox="0 0 100 100"><circle class="tr" cx="50" cy="50" r="44"/><circle class="pg" id="rD" cx="50" cy="50" r="44"/></svg><b id="vD">00</b><span>يوم</span></div>
+   <div class="cdU"><svg viewBox="0 0 100 100"><circle class="tr" cx="50" cy="50" r="44"/><circle class="pg" id="rH" cx="50" cy="50" r="44"/></svg><b id="vH">00</b><span>ساعة</span></div>
+   <div class="cdU"><svg viewBox="0 0 100 100"><circle class="tr" cx="50" cy="50" r="44"/><circle class="pg" id="rM" cx="50" cy="50" r="44"/></svg><b id="vM">00</b><span>دقيقة</span></div>
+   <div class="cdU"><svg viewBox="0 0 100 100"><circle class="tr" cx="50" cy="50" r="44"/><circle class="pg" id="rS" cx="50" cy="50" r="44"/></svg><b id="vS">00</b><span>ثانية</span></div>
+  </div>
+  <div class="cdBar2"><i id="cdProg"></i></div>
+  <div class="cdSm" id="cdPct"></div>
+  <button class="cdX" id="cdClose">حسنًا، فهمت</button>
+ </div>
+</div>
 <div id="app"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -1519,6 +1588,47 @@ async function deFlip(aid,sid){ const a=S.de.as[aid], pr=a.status==='absent', p=
   if(pr){ p.behavior_score=p.behavior_good?num('clinical.behavior_max'):0; p.uniform_score=confirm('هل اليونيفورم كامل؟ (موافق = كامل)')?num('clinical.uniform_max'):0; }
   const r=await withTO(SB.from('clinical_assessments').update(p).eq('id',aid).eq('version',a.version).select('id')); if(r.error) return deMsg('فشل: '+tr(r.error.message),'bad'); if(!r.data?.length) return deMsg('تعدّل السجل من مستخدم آخر - أعد الفتح','bad');
   const b=$('#deSC'+sid); b.innerHTML=''; await deRef(); await deStu(sid); }
+</script>
+
+<script>
+(function(){
+  /* موعد الغلق: 1 فبراير 2027 - 12:00 صباحًا بتوقيت القاهرة */
+  var END=new Date('2027-02-01T00:00:00+02:00').getTime();
+  var START=new Date('2026-11-17T00:00:00+02:00').getTime();
+  var C=2*Math.PI*44, $=function(i){return document.getElementById(i)};
+  var bar=$('cdBar'),mod=$('cdMod'),prev={};
+  var p2=function(n){return String(n).padStart(2,'0')};
+  ['rD','rH','rM','rS'].forEach(function(i){var r=$(i);r.style.strokeDasharray=C;r.style.strokeDashoffset=C});
+  function ring(id,frac){$(id).style.strokeDashoffset=C*(1-Math.max(0,Math.min(1,frac)))}
+  function set(id,v){var el=$(id);if(prev[id]!==v){el.textContent=v;el.classList.remove('tick');void el.offsetWidth;el.classList.add('tick');prev[id]=v}}
+  function tick(){
+    var left=END-Date.now();
+    if(left<=0){
+      mod.classList.add('done');$('cdTtl').textContent='تم غلق السيستم';
+      $('cdMsg').textContent='انتهى العد التنازلي وتم غلق السيستم. للاستفسار برجاء التواصل مع الإدارة.';
+      $('cdMini').textContent='تم الغلق';return;
+    }
+    var s=Math.floor(left/1000),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),sc=s%60;
+    set('vD',p2(d));set('vH',p2(h));set('vM',p2(m));set('vS',p2(sc));
+    ring('rD',d/Math.ceil((END-START)/864e5));ring('rH',h/24);ring('rM',m/60);ring('rS',sc/60);
+    var pc=Math.min(100,Math.max(0,(Date.now()-START)/(END-START)*100));
+    $('cdProg').style.width=pc.toFixed(1)+'%';
+    $('cdPct').textContent='انقضى '+pc.toFixed(1)+'% من المدة';
+    $('cdMini').textContent=d+'D '+p2(h)+':'+p2(m)+':'+p2(sc);
+    setTimeout(tick,1000-(Date.now()%1000));
+  }
+  function open(){mod.classList.add('on');document.body.style.overflow='hidden';$('cdClose').focus()}
+  function close(){mod.classList.remove('on');document.body.style.overflow='';try{sessionStorage.setItem('cdSeen','1')}catch(e){}}
+  document.body.insertBefore(bar,document.body.firstChild);
+  bar.addEventListener('click',open);
+  bar.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
+  $('cdClose').addEventListener('click',close);
+  mod.addEventListener('click',function(e){if(e.target===mod)close()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&mod.classList.contains('on'))close()});
+  tick();
+  var seen=false;try{seen=sessionStorage.getItem('cdSeen')==='1'}catch(e){}
+  if(!seen)setTimeout(open,600);
+})();
 </script>
 </body>
 </html>
