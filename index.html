@@ -303,8 +303,138 @@ function home(){
   const types=[...new Set(S.assign.map(x=>x.training_type_code))].sort((a,b)=>['antenatal','labor','postnatal','lab'].indexOf(a)-['antenatal','labor','postnatal','lab'].indexOf(b));
   const cards=types.map(t=>{const n=S.assign.filter(x=>x.training_type_code===t).length;
     return `<button class="card btn" onclick="groupsView('${t}')"><div class="big">${TN[t]}</div><div class="muted">${n} مجموعة</div></button>`}).join('');
-  app.innerHTML = shell(`<h2>اختر نوع الشيت</h2>`+(types.length?`<div class="grid">${cards}</div>`:'<div class="card">لم تُسند إليك مجموعات بعد. تواصل مع المنسق.</div>'),
+  S.htTypes=`<h2>اختر نوع الشيت</h2>`+(types.length?`<div class="grid">${cards}</div>`:'<div class="card">لم تُسند إليك مجموعات بعد. تواصل مع المنسق.</div>');
+  if(S.hdUid!==S.me.user_id){ S.hd=null; S.hdUid=S.me.user_id; S.ht='types'; }
+  S.ht=S.ht||'types'; S.hf={g:'',t:'',q:''};
+  app.innerHTML = shell(`<div class="seg" id="hseg" style="margin:.4em 0 .8em"></div><div id="ht"></div>`,
     S.period?e(S.period.name):'لا توجد فترة تدريبية مفتوحة');
+  homeSeg(); homeBody();
+  if(S.assign.some(x=>x.training_type_code!=='lab')) reloadTabs();
+}
+
+/* ---------- doctor: tabs (absent w/ makeup + sheet not submitted) ---------- */
+const HORD=['antenatal','labor','postnatal'];
+async function loadTabs(){
+  const staff=S.me.role!=='doctor';
+  const ct=staff?S.st.asg.filter(x=>x.training_type_code!=='lab'):S.assign.filter(x=>x.training_type_code!=='lab');
+  if(!S.period) return {abs:[],sh:[]};
+  const gs=staff?S.st.grp.map(g=>g.code):[...new Set(ct.map(x=>x.group_code))], ts=staff?['antenatal','labor','postnatal']:[...new Set(ct.map(x=>x.training_type_code))], ok=new Set(ct.map(x=>x.group_code+'|'+x.training_type_code));
+  const dn={}; if(staff){ const nm=Object.fromEntries(S.st.docs.map(d=>[d.user_id,d.full_name])); ct.forEach(a=>{const k=a.group_code+'|'+a.training_type_code; dn[k]=(dn[k]?dn[k]+'، ':'')+(nm[a.doctor_id]||'');}); }
+  if(!staff&&!ct.length) return {abs:[],sh:[]};
+  const rows=await all('v_clinical_summary','student_code,group_code,serial_no,full_name,training_type_code,sessions_recorded,sessions_attended,sessions_absent,sessions_made_up,absent_all,late_approved,sheet_score_15',
+    q=>q.eq('period_id',S.period.id).in('group_code',gs).in('training_type_code',ts).or('sessions_absent.gt.0,sheet_score_15.is.null'));
+  const mine=(staff?rows:rows.filter(x=>ok.has(x.group_code+'|'+x.training_type_code))).map(x=>({...x,doc:dn[x.group_code+'|'+x.training_type_code]||''})), D={abs:[],sh:[]};
+  mine.forEach(x=>{
+    if(x.sessions_absent>0) D.abs.push(x);
+    else if((x.sessions_attended+x.sessions_made_up)>0 && x.sheet_score_15==null) D.sh.push(x);
+  });
+  return D;
+}
+async function reloadTabs(){
+  S.hdLoading=true; if(S.ht!=='types') homeBody();
+  try{ S.hd=await loadTabs(); }catch(er){ S.hd={err:'تعذر تحميل القوائم: '+(tr(er.message||String(er))),abs:[],sh:[]}; }
+  S.hdLoading=false; const st=S.me.role!=='doctor';
+  if(st){ if(!/^(tcm|tns)$/.test(S.tab)||!$('#tb')) return; homeBody(); return; }
+  if(!$('#hseg')) return; homeSeg(); if(S.ht!=='types') homeBody();
+}
+function staffTab(k){ S.ht=k; S.hf={g:'',t:'',q:''}; S.hd=null; homeBody(); reloadTabs(); }
+function homeTab(k){ S.ht=k; S.hf={g:'',t:'',q:''}; homeSeg(); homeBody(); }
+function homeSeg(){
+  const el=$('#hseg'); if(!el) return; const D=S.hd&&!S.hd.err?S.hd:null;
+  const c=k=>D?` <span class="chip ${k==='abs'?'a':''}">${D[k].length}</span>`:'';
+  el.innerHTML=`<button class="${S.ht==='types'?'on':''}" onclick="homeTab('types')">الأنواع والمجموعات</button><button class="${S.ht==='abs'?'on':''}" onclick="homeTab('abs')">الغائبون (لهم تعويض)${c('abs')}</button><button class="${S.ht==='sh'?'on':''}" onclick="homeTab('sh')">حاضرون لم يسلّموا الشيت${c('sh')}</button>`;
+}
+function homeBody(){
+  const b=$('#ht')||$('#tb'); if(!b) return;
+  if(S.ht==='types'){ b.innerHTML=S.htTypes; return; }
+  const k=S.ht, D=S.hd;
+  if(!D||S.hdLoading&&!D.abs){ b.innerHTML='<p>جارٍ التحميل...</p>'; return; }
+  if(D.err){ b.innerHTML=`<div class="card"><div class="st bad" role="alert">${e(D.err)}</div><button style="margin-top:.6em" onclick="reloadTabs()">إعادة المحاولة</button></div>`; return; }
+  const rows=D[k], gs=[...new Set(rows.map(x=>x.group_code))].sort(nat), ts=HORD.filter(t=>rows.some(x=>x.training_type_code===t)), F=S.hf;
+  b.innerHTML=`<div class="muted">${k==='abs'?'طلاب غابوا عن جلسة أو أكثر ولم يعوّضوا بعد — اضغط على الطالب لتسجيل التعويض والدرجات ودرجة الشيت.':'طلاب حضروا (أو عوّضوا) ولم تُسجَّل لهم درجة الشيت بعد — اضغط على الطالب لإدخال درجة الشيت.'}</div>
+  <div class="bar2"><div><label for="hg">المجموعة</label><select id="hg"><option value="">كل المجموعات</option>${gs.map(g=>`<option ${F.g===g?'selected':''}>${e(g)}</option>`).join('')}</select></div>
+  ${ts.length>1?`<div><label for="htt">نوع الشيت</label><select id="htt"><option value="">الكل</option>${ts.map(t=>`<option value="${t}" ${F.t===t?'selected':''}>${TN[t]}</option>`).join('')}</select></div>`:''}
+  <div><label for="hq">بحث بالاسم</label><input id="hq" type="search" placeholder="اكتب جزءاً من الاسم" value="${e(F.q)}"></div>
+  <div style="align-self:end"><button onclick="reloadTabs()">تحديث</button></div></div><div class="list" id="hl"></div>`;
+  $('#hg').onchange=ev=>{F.g=ev.target.value;drawHL();}; if($('#htt')) $('#htt').onchange=ev=>{F.t=ev.target.value;drawHL();}; $('#hq').oninput=ev=>{F.q=ev.target.value.trim();drawHL();};
+  drawHL();
+}
+function drawHL(){
+  const k=S.ht, F=S.hf, el=$('#hl'); if(!el||!S.hd) return;
+  const rows=(S.hd[k]||[]).filter(x=>(!F.g||x.group_code===F.g)&&(!F.t||x.training_type_code===F.t)&&(!F.q||x.full_name.includes(F.q)))
+    .sort((a,b)=>nat(a.group_code,b.group_code)||HORD.indexOf(a.training_type_code)-HORD.indexOf(b.training_type_code)||a.serial_no-b.serial_no);
+  S.hv=rows; const ng=new Set(rows.map(x=>x.group_code)).size;
+  const h=rows.slice(0,500).map((x,i)=>{
+    const ex=k==='abs'?`<span class="chip a">غاب ${x.sessions_absent}${x.sessions_made_up?' · عوّض '+x.sessions_made_up:''}</span>${x.absent_all&&x.sessions_recorded>1?'<span class="muted">غائب كل الجلسات</span>':''}`
+      :`<span class="muted">حضر ${x.sessions_attended+x.sessions_made_up} جلسة</span>`;
+    return `<button class="row" onclick="openFullIdx(${i})"><span class="n">${x.serial_no}</span><span class="nm">${e(x.full_name)}</span><span class="chip c">${e(x.group_code)}</span><span class="chip">${TN[x.training_type_code]}</span>${S.me.role!=='doctor'&&x.doc?`<span class="muted">${e(x.doc)}</span>`:''}${ex}</button>`;}).join('');
+  el.innerHTML=`<div class="muted" style="margin:.4em 0">${rows.length} طالب في ${ng} مجموعة</div>`+(h||`<div class="row" style="justify-content:center">${rows.length?'':(k==='abs'?'لا يوجد طلاب غائبون بحاجة لتعويض ✓':'لا يوجد طلاب لم يسلّموا الشيت ✓')}</div>`)+(rows.length>500?'<div class="muted">يعرض أول 500 — استخدم التصفية</div>':'');
+}
+
+/* ---------- doctor: full student page (all sessions + makeup + sheet) ---------- */
+function openFullIdx(i){ const x=(S.hv||[])[i]; if(x) openFull(x.student_code,x.training_type_code,x.group_code,S.ht,i); }
+async function openFull(code,t,gc,from,idx){
+  if(S.busy) return;
+  S.t=t; S.g={gc}; S.sn=1; S.showAll=false; S.ps=null;
+  M={code,full:1,from,idx,loading:1,ses:{},sheet:'',gc,t}; drawFull();
+  try{ await loadGroup(); }catch(_){}
+  if(!M.full||M.code!==code) return;
+  if(!(S.g.stu||[]).find(x=>x.student_code===code)){ M.loading=0; M.err='تعذر تحميل بيانات الطالب. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.'; return drawFull(); }
+  const n=num('clinical.sessions_per_type');
+  for(let i=1;i<=n;i++){ const a=S.g.all[code+'|'+i]; M.ses[i]={st:a?a.status:null,bg:a?a.behavior_good:null,ug:(a&&a.uniform_score!=null)?a.uniform_score>0:null}; }
+  M.sheet=S.g.sheet[code]?.score??''; M.loading=0; drawFull();
+}
+function selS(i){ S.sn=i; S.g.sess=S.g.sessions.find(x=>x.session_no===i)||null; S.g.ass={}; S.g.stu.forEach(s=>{const a=S.g.all[s.student_code+'|'+i]; if(a) S.g.ass[s.student_code]=a;}); }
+function setF(i,k,v){ M.ses[i][k]=v; drawFull(); }
+async function saveSes(i){
+  const d=M.ses[i]; if(!d||!d.st) return msg('اختر حاضر أو غائب للجلسة '+i,'bad');
+  if(d.st==='present'&&d.bg==null) return msg('اختر السلوك للجلسة '+i,'bad');
+  if(d.st==='present'&&d.ug==null) return msg('اختر اليونيفورم للجلسة '+i,'bad');
+  selS(i); if(!S.g.sess) return msg('الجلسة '+i+' لم تُسجَّل لهذه المجموعة بعد. تُنشأ من صفحة المجموعة أولًا','bad');
+  M.st=d.st; M.bg=d.bg; M.ug=d.ug; await saveC();
+}
+function mkRow(i,a){
+  const today=new Date().toLocaleDateString('en-CA'), fs=num('clinical.attendance_max')+num('clinical.behavior_max')+num('clinical.uniform_max');
+  return `<div class="bar2" style="align-items:end;margin:.3em 0"><div><label for="mkd${i}">تاريخ تعويض جلسة ${i}</label><input type="date" id="mkd${i}" value="${e(a.makeup_date||today)}" ${a.makeup_done?`onchange="setMkDate(${i},this.value)"`:''}></div>
+  <label class="gc" for="sk${i}" style="align-self:end;min-height:44px"><input type="checkbox" id="sk${i}" ${a.sick_excuse?'checked':''} onchange="toggleSick(${i})"> مرضي</label>
+  <button class="${a.makeup_done?'on':''}" onclick="toggleMk(${i})">${a.makeup_done?'✓ تم التعويض (إلغاء)':'تسجيل التعويض'}</button></div>${a.sick_excuse?`<div class="muted">إذن مرضي: عند تسجيل التعويض تُحسب الدرجة كاملة (${fs} من ${fs}).</div>`:''}`;
+}
+function drawFull(){
+  let o=$('#md'); const sc=o?.querySelector('.sheet')?.scrollTop||0;
+  const hd=(t,sub)=>`<div style="display:flex;justify-content:space-between;gap:1em"><div style="flex:1;min-width:0"><h2 style="margin:0;overflow-wrap:anywhere;line-height:1.5">${t}</h2><div class="muted">${sub}</div></div><div style="display:flex;gap:.4em"><button onclick="navFull(-1)">السابق</button><button onclick="navFull(1)">التالي</button><button onclick="closeFull()" aria-label="إغلاق">إغلاق</button></div></div>`;
+  let html;
+  if(M.loading||M.err||!S.g.stu){
+    html=`<div class="sheet" role="dialog" aria-label="صفحة الطالب">${hd('...',e(M.code||''))}${M.err?`<div class="st bad" role="alert">${e(M.err)}</div>`:'<p>جارٍ التحميل...</p>'}</div>`;
+  } else {
+    const s=S.g.stu.find(x=>x.student_code===M.code)||{full_name:M.code}, m=S.g.sum[M.code]||{}, n=num('clinical.sessions_per_type'), fs=num('clinical.attendance_max')+num('clinical.behavior_max')+num('clinical.uniform_max');
+    let ses='';
+    for(let i=1;i<=n;i++){
+      const sess=S.g.sessions.find(x=>x.session_no===i), a=S.g.all[M.code+'|'+i], d=M.ses[i]||{}, ab=d.st==='absent';
+      const chip=!a?'<span class="chip">لم يُسجَّل</span>':a.status==='present'?'<span class="chip c">حاضر</span>':`<span class="chip a">غائب${a.makeup_done?(a.sick_excuse?' (عوّض - مرضي)':' (عوّض)'):''}</span>`;
+      let inner;
+      if(!sess) inner='<div class="muted">هذه الجلسة لم تُسجَّل لمجموعة الطالب بعد (تُنشأ من صفحة المجموعة).</div>';
+      else inner=`<div class="seg"><button class="ok ${d.st==='present'?'on':''}" onclick="setF(${i},'st','present')">حاضر</button><button class="no ${ab?'on':''}" onclick="setF(${i},'st','absent')">غائب (غـ)</button></div>`
+        +(d.st==='present'?`<div class="muted">السلوك</div><div class="seg"><button class="${d.bg===true?'on':''}" onclick="setF(${i},'bg',true)">سلوك جيد (${num('clinical.behavior_max')})</button><button class="${d.bg===false?'on':''}" onclick="setF(${i},'bg',false)">غير جيد (0)</button></div><div class="muted">اليونيفورم</div><div class="seg"><button class="${d.ug===true?'on':''}" onclick="setF(${i},'ug',true)">يونيفورم كامل (${num('clinical.uniform_max')})</button><button class="${d.ug===false?'on':''}" onclick="setF(${i},'ug',false)">غير كامل (0)</button></div>`:'')
+        +(ab&&a&&a.status==='absent'?mkRow(i,a):'')
+        +`<button class="pri" style="width:100%;margin-top:.5em" onclick="saveSes(${i})">حفظ الجلسة ${i}</button>`;
+      ses+=`<div class="card" style="margin:.5em 0"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5em"><b>الجلسة ${i}${sess?` - الأسبوع ${sess.week_no}`:''}</b><span>${chip}${a&&a._pending?' <span class="muted" title="محفوظ على الجهاز ولم يصل للخادم">⏳</span>':''}</span></div>${inner}</div>`;
+    }
+    const pm=pendMk(), mx=num('clinical.sheet_max');
+    const shBlk=`<div class="card" style="margin:.5em 0"><b>درجة الشيت</b>${pm.length?`<div class="st bad" role="alert">لا يمكن إدخال درجة الشيت: الطالب غائب عن جلسة ${pm.join(' و')} ولم يعوّض بعد. سجّل التعويض أولًا.</div>`:`<label for="sh">درجة الشيت (من ${mx})</label><input id="sh" type="number" step="0.25" min="0" max="${mx}" value="${e(M.sheet)}" oninput="M.sheet=this.value"><button class="pri" style="width:100%;margin-top:.6em" onclick="saveSheet()">حفظ درجة الشيت</button>`}</div>`;
+    const sum=`<div class="sum">الحضور والسلوك واليونيفورم: <b>${m.att_beh_display??'-'}</b> / ${fs} &nbsp; الشيت: <b>${m.sheet_score_15??'-'}</b> / 15<br>الإجمالي: <b>${m.absent_all?'غـ':(m.total_20??'غير مكتمل')}</b> / 20${m.absent_all?'<br><span class="muted">الطالب غـ في كل الجلسات: لا يُسجَّل له شيت إلا بأمر المنسق.</span>':''}</div>`;
+    html=`<div class="sheet" role="dialog" aria-label="صفحة الطالب">${hd(e(s.full_name),`${e(M.code)} - مجموعة ${e(M.gc)} - ${TN[M.t]}`)}${M.from==='sh'?shBlk+ses:ses+shBlk}${sum}<div class="st" id="msg" role="status"></div></div>`;
+  }
+  if(o) o.innerHTML=html; else { o=document.createElement('div'); o.className='modal'; o.id='md'; o.innerHTML=html; document.body.appendChild(o); }
+  const sh1=o.querySelector('.sheet'); if(sh1) sh1.scrollTop=sc;
+}
+function navFull(d){
+  if(S.busy) return msg('جارٍ حفظ عملية سابقة... انتظر لحظة','st');
+  const L=S.hv||[], j=(M.idx??-1)+d; if(j<0||j>=L.length) return msg('لا يوجد طالب آخر في القائمة','st');
+  const x=L[j]; openFull(x.student_code,x.training_type_code,x.group_code,M.from,j);
+}
+async function closeFull(){
+  if(S.busy) return msg('جارٍ حفظ عملية سابقة... انتظر لحظة ثم أغلق','st');
+  $('#md')?.remove(); M={}; await reloadTabs();
 }
 
 /* ---------- doctor: groups ---------- */
@@ -413,6 +543,7 @@ async function setMkDate(i,d){
 }
 function setM(k,v){M[k]=v; drawStu();}
 function drawStu(){
+  if(M&&M.full) return drawFull();
   const s=S.g.stu.find(x=>x.student_code===M.code), m=S.g.sum[M.code]||{}, lab=S.t==='lab', ab=M.st==='absent';
   const seg=`<div class="seg"><button class="ok ${M.st==='present'?'on':''}" onclick="setM('st','present')">حاضر</button><button class="no ${ab?'on':''}" onclick="setM('st','absent')">غائب (غـ)</button></div>`;
   let body;
@@ -542,10 +673,10 @@ function drawStaff(){
   liveStart();
   const {grp,docs,asg,cl,lb,n}=S.st, tab=S.tab, adm=S.me.role==='admin';
   const inc=TYPES.reduce((a,t)=>a+rowsFor(t).filter(x=>!isDone(x)).length,0);
-  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],['att','توثيق الغيابات'],['trk','متابعة الدكاترة'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['imp','استيراد الدرجات'],['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
+  const tabs=[['sum','الملخص'],['scores','الدرجات'],['stu','الطلاب'],['abs','الغياب'],...(adm?[['tcm','الغائبون (تعويض)'],['tns','لم يسلّموا الشيت']]:[]),['att','توثيق الغيابات'],['trk','متابعة الدكاترة'],['docs','الدكاترة والإسناد'],['audit','سجل المراجعة'],...(adm?[['imp','استيراد الدرجات'],['bk','النسخ الاحتياطي']]:[])].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="showTab('${k}')">${l}</button>`).join('')+'<button onclick="staffView()">تحديث</button>';
   const kpi=`<div class="grid"><div class="card"><div class="muted">الطلاب</div><div class="big">${n}</div></div><div class="card"><div class="muted">المجموعات</div><div class="big">${grp.length}</div></div><div class="card"><div class="muted">الدكاترة</div><div class="big">${docs.filter(d=>d.role==='doctor').length}</div></div><div class="card"><div class="muted">تقييمات غير مكتملة</div><div class="big">${inc}</div></div></div>`;
   app.innerHTML=shell(`<h2>لوحة ${adm?'مدير النظام':'المنسق'}</h2>${kpi}<div class="seg" style="margin:.8em 0">${tabs}</div><div id="tb"></div>`,e(S.period?.name||''));
-  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,att:tabAtt,trk:tabTrk,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab](); deMount();
+  ({sum:tabSum,scores:tabScores,stu:tabStu,abs:tabAbs,tcm:()=>staffTab('abs'),tns:()=>staffTab('sh'),att:tabAtt,trk:tabTrk,docs:tabDocs,audit:tabAudit,bk:tabBk,imp:tabImp})[tab](); deMount();
   const kg=document.querySelector('.grid'); if(kg) kg.querySelectorAll('.big').forEach((el,i)=>tw(el,'k'+i,+el.textContent||0));
 }
 /* ---------- live admin dashboard ---------- */
